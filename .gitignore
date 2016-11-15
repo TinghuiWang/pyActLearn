@@ -1,0 +1,8 @@
+# sphinx documentation build folder
+docs/_build
+
+# pyCharm Project metadata
+.idea/
+
+# setup.py info
+pyActLearn.egg-info/
