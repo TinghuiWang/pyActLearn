@@ -36,7 +36,11 @@ extensions = [
     'sphinx.ext.coverage',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
+    'sphinx.ext.napoleon'
 ]
+
+# Use ivar in napoleon to render attributes
+napoleon_use_ivar = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -303,4 +307,7 @@ texinfo_documents = [
 
 
 # Example configuration for intersphinx: refer to the Python standard library.
-intersphinx_mapping = {'https://docs.python.org/': None}
+intersphinx_mapping = {
+    'python': ('https://docs.python.org/3', None),
+    'h5py': ('http://docs.h5py.org/en/latest/', None),
+    'fuel': ('https://fuel.readthedocs.io/en/latest', None)}
