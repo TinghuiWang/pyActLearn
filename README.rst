@@ -23,3 +23,7 @@ Run ``make install`` under the root directory to compile the cython modules and 
 
 Documentation
 -------------
+
+Please see documentation_ for more information.
+
+.. _documentation: https://pyactlearn.readthedocs.io/
