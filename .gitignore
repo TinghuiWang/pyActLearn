@@ -6,3 +6,6 @@ docs/_build
 
 # setup.py info
 pyActLearn.egg-info/
+
+# datasets - downloaded via download scripts
+datasets/
