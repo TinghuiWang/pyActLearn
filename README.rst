@@ -1,3 +1,6 @@
+.. image:: https://scrutinizer-ci.com/g/TinghuiWang/pyActLearn/badges/quality-score.png?b=master
+   :target: https://scrutinizer-ci.com/g/TinghuiWang/pyActLearn/
+
 .. image:: https://readthedocs.org/projects/pyactlearn/badge/?version=latest
    :target: https://pyactlearn.readthedocs.io/
 
