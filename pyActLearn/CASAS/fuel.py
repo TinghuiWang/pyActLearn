@@ -6,8 +6,8 @@ from fuel.datasets import H5PYDataset
 logger = logging.getLogger(__name__)
 
 
-class CasasFuel(object):
-    """CasasFuel Class to retrieve CASAS smart home data as a fuel dataset object
+class CASASFuel(object):
+    """CASASFuel Class to retrieve CASAS smart home data as a fuel dataset object
 
     Args:
         dir_name (:obj:`string`):
@@ -26,6 +26,8 @@ class CasasFuel(object):
             f = open(dir_name + '/info.pkl', 'rb')
             self.info = pickle.load(f)
             f.close()
+        else:
+            logger.error('Cannot find info.pkl from current H5PYDataset directory %s' % dir_name)
 
     def get_dataset(self, which_sets, load_in_memory=False, **kwargs):
         """Return fuel dataset object specified by which_sets tuple and load it in memory
@@ -77,3 +79,36 @@ class CasasFuel(object):
         """
         dims = len(self.info['index_to_activity'])
         return dims
+
+    def get_activity_by_index(self, index):
+        """Get activity name by index
+
+        Args:
+            index (:obj:`int`): Activity index
+
+        Returns:
+            :obj:`str`: Activity label
+        """
+        activity_len = len(self.info['index_to_activity'])
+        if index < activity_len:
+            return self.info['index_to_activity'][index]
+        else:
+            logger.error('Activity index %d out of bound. Dataset has %d activities' % (index, activity_len))
+            return ''
+
+    def get_feature_by_index(self, index):
+        """Get feature string by index
+
+        Args:
+            index (:obj:`int`): Feature index
+
+        Returns:
+            :obj:`str`: Feature string
+        """
+        feature_len = len(self.info['index_to_feature'])
+        if index < feature_len:
+            return self.info['index_to_feature'][index]
+        else:
+            logger.error('Feature index %d out of bound. Dataset has %d features' % (index, feature_len))
+            return ''
+
