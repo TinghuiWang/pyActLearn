@@ -4,6 +4,7 @@
 # All rights reserved.
 
 from setuptools import setup, find_packages
+from Cython.Build import cythonize
 import os
 
 CLASSIFIERS = """\
@@ -54,6 +55,7 @@ def do_setup():
         keywords=' '.join(['activity recognition', 'smart home', 'smart environment']),
         packages=find_packages('.'),
         install_requires=['numpy>=1.7.1', 'scipy>=0.11', 'six>=1.9.0', 'theano>=0.8.0'],
+        ext_modules=cythonize("pyActLearn/learning/*.pyx", gdb_debug=True)
     )
 
 if __name__ == "__main__":

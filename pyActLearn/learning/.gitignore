@@ -1,0 +1,3 @@
+# Ignore cython generated files
+*.c
+*.so
