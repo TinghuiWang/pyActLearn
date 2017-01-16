@@ -17,7 +17,6 @@ class CASASFuel(object):
         data_filename (:obj:`str`): Path to `data.hdf5` dataset file
         info (:obj:`dict`): complementary dataset information stored in dict format
             keys of info includes:
-
     """
     def __init__(self, dir_name):
         logger.debug('Load Casas H5PYDataset from ' + dir_name)
@@ -112,3 +111,41 @@ class CASASFuel(object):
             logger.error('Feature index %d out of bound. Dataset has %d features' % (index, feature_len))
             return ''
 
+    def back_annotate(self, fp, prediction, split_id=-1, split_name=None):
+        """Back annotated predictions of a split set into file pointer
+
+        Args:
+            fp (:obj:`file`): File object to the back annotation file.
+            prediction (:obj:`numpy.ndarray`): Numpy array containing prediction labels.
+            split_id (:obj:`int`): The index of split set to be annotated (required if split_name not specified).
+            split_name (:obj:`str`): The name of the split set to be annotated (required if split_id is not specified).
+        """
+        # Verify split id first
+        if split_id == -1:
+            if split_name in self.info['split_sets']:
+                split_id = self.info['split_sets'].index(split_name)
+            else:
+                logger.error('Failed to find split set with name %s.' % split_name)
+                return
+        if 0 < split_id < len(self.info['split_sets']):
+            time_array = self.info['split_timearray'][split_id]
+        else:
+            logger.error('Split set index %d out of bound.' % split_id)
+            return
+        # Check length of prediction and time array
+        if prediction.shape[0] != len(time_array):
+            logger.error('Prediction size miss-match. There are %d time points with only %d labels given.' %
+                         (len(time_array), prediction.shape[0]))
+            return
+        # Perform back annotation
+        for i in range(len(time_array)):
+            fp.write('%s %s\n' % (time_array[i].strftime('%Y-%m-%d %H:%M:%S'),
+                                  self.get_activity_by_index(prediction[i])))
+
+    @staticmethod
+    def files_exist(dir_name):
+        """Check if the CASAS Fuel dataset files exist under dir_name
+        """
+        data_filename = os.path.join(dir_name, 'data.hdf5')
+        info_filename = os.path.join(dir_name, 'info.pkl')
+        return os.path.isfile(data_filename) and os.path.isfile(info_filename)
