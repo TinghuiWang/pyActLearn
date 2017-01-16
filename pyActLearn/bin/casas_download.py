@@ -46,9 +46,10 @@ def CASAS_download(directory, datasets):
                 zip_ref.extractall(directory)
                 zip_ref.close()
 
-if __name__ == '__main__':
+
+def main():
     """
-    usage: download.py [-h] [-d DIR] datasets [datasets ...]
+    usage: casas_download.py [-h] [-d DIR] datasets [datasets ...]
 
     Download CASAS datasets to a directory.
 
@@ -70,3 +71,6 @@ if __name__ == '__main__':
         if str.capitalize(user_input) == 'N':
             exit()
     CASAS_download(args.dir, tuple(args.datasets))
+
+if __name__ == '__main__':
+    main()

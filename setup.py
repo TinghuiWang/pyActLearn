@@ -54,6 +54,7 @@ def do_setup():
         license=LICENSE,
         keywords=' '.join(['activity recognition', 'smart home', 'smart environment']),
         packages=find_packages('.'),
+        entry_points={'console_scripts': ['casas_download = pyActLearn.bin.casas_download:main']},
         install_requires=['numpy>=1.7.1', 'scipy>=0.11', 'six>=1.9.0', 'theano>=0.8.0'],
         ext_modules=cythonize("pyActLearn/learning/*.pyx", gdb_debug=True)
     )
