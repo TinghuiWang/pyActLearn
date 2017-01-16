@@ -1,12 +1,13 @@
-xlsxwriter==0.7.3
-numpy==1.11.1
-picklable-itertools==0.1.1
-progressbar2==3.10.0
-pyyaml==3.11
-six==1.10.0
-toolz==0.8.0
-scikit-learn==0.18
-Cython==0.23.4
+xlsxwriter>=0.7.3
+numpy>=1.11.1
+picklable-itertools>=0.1.1
+progressbar2>=3.10.0
+pyyaml>=3.11
+six>=1.10.0
+toolz>=0.8.0
+scikit-learn>=0.18
+Cython>=0.23.4
+tensorflow-gpu>=0.12.1
 
 --allow-external theano
 --allow-unverified theano
