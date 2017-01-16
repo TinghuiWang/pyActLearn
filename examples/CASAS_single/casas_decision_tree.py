@@ -30,7 +30,23 @@ def training_and_test(token, train_data, test_data, num_classes, result):
     confusion_matrix = get_confusion_matrix(num_classes=num_classes,
                                             label=test_data[1].flatten(), predicted=predicted_y)
     result.add_record(decision_tree.export_to_dict(), key=token, confusion_matrix=confusion_matrix)
+    return predicted_y
 
+
+def load_and_test(token, test_data, num_classes, result):
+    """Load and test
+
+    Args:
+        token (:obj:`str`): token representing this run
+        test_data (:obj:`tuple` of :obj:`numpy.array`): Tuple of testing feature and label
+        num_classes (:obj:`int`): Number of classes
+        result (:obj:`pyActLearn.performance.record.LearningResult`): LearningResult object to hold learning result
+    """
+    decision_tree = DecisionTree(test_data[0].shape[1], num_classes, log_level=logging.WARNING)
+    decision_tree.load_from_dict(result.get_record_by_key(token)['model'])
+    # Test
+    predicted_y = decision_tree.classify(test_data[0])
+    return predicted_y
 
 if __name__ == '__main__':
     args_ok = False
@@ -77,15 +93,14 @@ if __name__ == '__main__':
     if os.path.exists(h5py_dir):
         if not os.path.isdir(h5py_dir):
             exit('h5py dataset location %s is not a directory. Abort.' % h5py_dir)
-    else:
-        os.mkdir(h5py_dir)
-    # Finish check and creating all directory needed - now load datasets
-    if casas_data_dir is not None:
-        casas_data = CASASData(path=casas_data_dir)
-        casas_data.summary()
-        # SVM needs to use statistical feature with per-sensor and normalization
-        casas_data.populate_feature(method='stat', normalized=False, per_sensor=False)
-        casas_data.export_hdf5(h5py_dir)
+    if not CASASFuel.files_exist(h5py_dir):
+        # Finish check and creating all directory needed - now load datasets
+        if casas_data_dir is not None:
+            casas_data = CASASData(path=casas_data_dir)
+            casas_data.summary()
+            # SVM needs to use statistical feature with per-sensor and normalization
+            casas_data.populate_feature(method='stat', normalized=False, per_sensor=False)
+            casas_data.export_hdf5(h5py_dir)
     casas_fuel = CASASFuel(dir_name=h5py_dir)
     # Prepare learning result
     result_pkl_file = os.path.join(output_dir, 'result.pkl')
@@ -105,6 +120,8 @@ if __name__ == '__main__':
     train_name = split_list[0]
     train_set = casas_fuel.get_dataset((train_name,), load_in_memory=True)
     (train_set_data) = train_set.data_sources
+    # Prepare Back Annotation
+    fp_back_annotated = open(os.path.join(output_dir, 'back_annotated.txt'), 'w')
     for i in range(1, len(split_list)):
         test_name = split_list[i]
         test_set = casas_fuel.get_dataset((test_name,), load_in_memory=True)
@@ -112,7 +129,10 @@ if __name__ == '__main__':
         # run svm
         logger.info('Training on %s, Testing on %s' % (train_name, test_name))
         if result.get_record_by_key(test_name) is None:
-            training_and_test(test_name, train_set_data, test_set_data, num_classes, result)
+            prediction = training_and_test(test_name, train_set_data, test_set_data, num_classes, result)
+        else:
+            prediction = load_and_test(test_name, test_set_data, num_classes, result)
+        casas_fuel.back_annotate(fp_back_annotated, prediction=prediction, split_id=i)
         train_name = test_name
         train_set_data = test_set_data
     f = open(result_pkl_file, 'wb')
