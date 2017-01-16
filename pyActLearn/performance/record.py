@@ -6,7 +6,7 @@ from . import overall_performance_index, per_class_performance_index, get_perfor
 from ..logging import logging_name
 from ..CASAS.fuel import CASASFuel
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 class LearningResult:
