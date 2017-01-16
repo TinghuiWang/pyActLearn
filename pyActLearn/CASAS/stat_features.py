@@ -3,7 +3,7 @@ import logging
 import numpy as np
 from ..logging import logging_name
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(__name__)
 
 
 # region Abstract FeatureRoutineTemplate Class
