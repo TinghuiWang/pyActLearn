@@ -265,7 +265,7 @@ class CASASData(object):
                     self.x[i, j * len_per_event + sensor_index + 1] = 1
                 else:
                     self.x[i, j * len_per_event + 1] = sensor_index
-            self.time_list.append(self.event_list[i + events_in_window - 1]['datetime'].timestamp())
+            self.time_list.append(self.event_list[i + events_in_window - 1]['datetime'])
         return num_events
 
     def _calculate_stat_features(self):
@@ -275,7 +275,6 @@ class CASASData(object):
         num_feature_rows = self._count_samples()
         self.x = np.zeros((num_feature_rows, num_feature_columns), dtype=np.float)
         self.y = np.zeros(num_feature_rows, dtype=np.int)
-        self.time = np.zeros(num_feature_rows, dtype=np.float)
         cur_row_id = self.max_window_size - 1
         cur_sample_id = 0
         # Execute feature update routine
@@ -288,7 +287,6 @@ class CASASData(object):
         # Due to sensor event discontinuity, the sample size will be smaller than the num_feature_rows calculated
         self.x = self.x[0:cur_sample_id, :]
         self.y = self.y[0:cur_sample_id]
-        self.time = self.time[0:cur_sample_id]
         self.is_stat_feature = True
         logger.debug('Total amount of feature vectors calculated: %d' % cur_sample_id)
 
@@ -380,7 +378,7 @@ class CASASData(object):
             return 0
         if self.is_labeled:
             self.y[cur_sample_id] = self.activity_list[self.event_list[cur_row_id]['activity']]['index']
-        self.time[cur_sample_id] = time.mktime(self.event_list[cur_row_id]['datetime'].timetuple())
+        self.time_list.append(self.event_list[cur_row_id]['datetime'])
         return 1
 
     _COLORS = ('#b20000, #56592d, #acdae6, #cc00be, #591616, #d5d9a3, '
@@ -913,13 +911,13 @@ class CASASData(object):
             :obj:`list` of :obj:`int`: List of indices of the event at the beginning of each day
         """
         day_index_list = [0]
-        start_date = datetime.datetime.fromtimestamp(self.time[0]).date()
-        for i in range(len(self.time)):
-            cur_date = datetime.datetime.fromtimestamp(self.time[i]).date()
+        start_date = self.time_list[0].date()
+        for i in range(len(self.time_list)):
+            cur_date = self.time_list[i].date()
             if cur_date > start_date:
                 day_index_list.append(i)
                 start_date = cur_date
-        day_index_list.append(len(self.time))
+        day_index_list.append(len(self.time_list))
         return day_index_list
 
     def _break_by_week(self):
@@ -929,15 +927,15 @@ class CASASData(object):
             :obj:`list` of :obj:`int`: List of indices of the event at the beginning of each week
         """
         week_index_list = [0]
-        start_date = datetime.datetime.fromtimestamp(self.time[0]).date()
-        for i in range(len(self.time)):
-            cur_date = datetime.datetime.fromtimestamp(self.time[i]).date()
+        start_date = self.time_list[0].date()
+        for i in range(len(self.time_list)):
+            cur_date = self.time_list[i].date()
             # Monday - then not the same day as start_date
             # Else, if more than 7 days apart
             if (cur_date.weekday() == 0 and cur_date > start_date) or (cur_date - start_date).days >= 7:
                 week_index_list.append(i)
                 start_date = cur_date
-        week_index_list.append(len(self.time))
+        week_index_list.append(len(self.time_list))
         return week_index_list
 
     def export_hdf5(self, directory, break_by='week', comments=''):
@@ -982,6 +980,7 @@ class CASASData(object):
         # Construct split dict
         split_dict = {}
         split_set = []
+        split_timearray = []
         num_break_point = len(break_list) - 1
         for i in range(num_break_point):
             start = break_list[i]
@@ -992,6 +991,7 @@ class CASASData(object):
                 'targets': (start, stop)
             }
             split_set.append(split_name)
+            split_timearray.append(self.time_list[start:stop])
         f.attrs['split'] = H5PYDataset.create_split_array(split_dict=split_dict)
         # Save to file
         f.flush()
@@ -1004,6 +1004,7 @@ class CASASData(object):
             'activity_info': self.activity_list,
             'sensor_info': self.sensor_list,
             'split_sets': split_set,
+            'split_timearray': split_timearray,
             'comments': comments
         }
         pickle.dump(dataset_info, f, pickle.HIGHEST_PROTOCOL)
