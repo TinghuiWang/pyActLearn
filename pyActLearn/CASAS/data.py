@@ -421,14 +421,19 @@ class CASASData(object):
         Returns:
             :obj:`int`: Number of enabled activities
         """
-        num_enabled_activities = 0
+        _enabled_activities_list = []
         for label in self.activity_list.keys():
             activity = self.activity_list[label]
             if activity['enable']:
-                activity['index'] = num_enabled_activities
-                num_enabled_activities += 1
+                _enabled_activities_list.append(label)
             else:
                 activity['index'] = -1
+        _enabled_activities_list.sort()
+        i = 0
+        for label in _enabled_activities_list:
+            self.activity_list[label]['index'] = i
+            i += 1
+        num_enabled_activities = len(_enabled_activities_list)
         logger.debug('Finished assigning index to activities. %d Activities enabled' % num_enabled_activities)
         return num_enabled_activities
 
@@ -568,12 +573,16 @@ class CASASData(object):
             :obj:`int`: The number of enabled sensor
         """
         sensor_id = 0
+        _enabled_sensor_list = []
         for sensor_label in self.sensor_list.keys():
             if self.sensor_list[sensor_label]['enable']:
-                self.sensor_list[sensor_label]['index'] = sensor_id
-                sensor_id += 1
+                _enabled_sensor_list.append(sensor_label)
             else:
                 self.sensor_list[sensor_label]['index'] = -1
+        _enabled_sensor_list.sort()
+        for sensor_label in _enabled_sensor_list:
+            self.sensor_list[sensor_label]['index'] = sensor_id
+            sensor_id += 1
         return sensor_id
 
     def enable_sensor(self, sensor_name):
@@ -960,7 +969,7 @@ class CASASData(object):
                 sys.stderr.write('%s is not a directory. Abort.')
                 return
         else:
-            os.mkdir(directory)
+            os.makedirs(directory)
         # Create HDF5 File
         f = h5py.File(directory + '/data.hdf5', mode='w')
         # Create features and targets array
