@@ -9,3 +9,6 @@ pyActLearn.egg-info/
 
 # datasets - downloaded via download scripts
 datasets/
+
+# Cache
+__pycache__
