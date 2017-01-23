@@ -1,6 +1,7 @@
 import os
 import pickle
 import logging
+import numpy as np
 from fuel.datasets import H5PYDataset
 
 logger = logging.getLogger(__name__)
@@ -139,8 +140,50 @@ class CASASFuel(object):
             return
         # Perform back annotation
         for i in range(len(time_array)):
-            fp.write('%s %s\n' % (time_array[i].strftime('%Y-%m-%d %H:%M:%S'),
-                                  self.get_activity_by_index(prediction[i])))
+            if prediction[i] != -1:
+                fp.write('%s %s\n' % (time_array[i].strftime('%Y-%m-%d %H:%M:%S'),
+                                      self.get_activity_by_index(prediction[i])))
+
+    def back_annotate_with_proba(self, fp, prediction_proba, split_id=-1, split_name=None, top_n=-1):
+        """Back annotated prediction probabilities of a split set into file pointer
+
+        Args:
+            fp (:obj:`file`): File object to the back annotation file.
+            prediction_proba (:obj:`numpy.ndarray`): Numpy array containing probability for each class in shape
+                of (num_samples, num_class).
+            split_id (:obj:`int`): The index of split set to be annotated (required if split_name not specified).
+            split_name (:obj:`str`): The name of the split set to be annotated (required if split_id is not specified).
+            top_n (:obj:`int`): Back annotate top n probabilities.
+        """
+        # Verify split id first
+        if split_id == -1:
+            if split_name in self.info['split_sets']:
+                split_id = self.info['split_sets'].index(split_name)
+            else:
+                logger.error('Failed to find split set with name %s.' % split_name)
+                return
+        if 0 < split_id < len(self.info['split_sets']):
+            time_array = self.info['split_timearray'][split_id]
+        else:
+            logger.error('Split set index %d out of bound.' % split_id)
+            return
+        # Check length of prediction and time array
+        if prediction_proba.shape[0] != len(time_array):
+            logger.error('Prediction size miss-match. There are %d time points with only %d labels given.' %
+                         (len(time_array), prediction_proba.shape[0]))
+            return
+        if top_n == -1:
+            top_n = self.get_output_dims()
+        # Perform back annotation
+        for i in range(len(time_array)):
+            sorted_index = np.argsort(prediction_proba[i, :])[::-1]
+            if prediction_proba[i, sorted_index[0]] != -1:
+                fp.write('%s' % time_array[i].strftime('%Y-%m-%d %H:%M:%S'))
+                for j in range(top_n):
+                    fp.write(', %s(%g)' % (self.get_activity_by_index(sorted_index[j]),
+                                           prediction_proba[i, sorted_index[j]]))
+                fp.write('\n')
+
 
     @staticmethod
     def files_exist(dir_name):
