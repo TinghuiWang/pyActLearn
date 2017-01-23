@@ -78,7 +78,7 @@ if __name__ == '__main__':
                 exit('Output directory %s is found, but not a directory. Abort.' % output_dir)
         else:
             # Create directory
-            os.mkdir(output_dir)
+            os.makedirs(output_dir)
     else:
         output_dir = '.'
     log_filename = os.path.join(output_dir, log_filename)
@@ -134,7 +134,7 @@ if __name__ == '__main__':
     fp_back_annotated = open(os.path.join(output_dir, 'back_annotated.txt'), 'w')
     output_log_dir = os.path.join(output_dir, 'log')
     if not os.path.isdir(output_log_dir):
-        os.mkdir(output_log_dir)
+        os.makedirs(output_log_dir)
     sda = SDA(casas_fuel.get_input_dims(), casas_fuel.get_output_dims(), [300, 300, 300])
     saver = tf.train.Saver(max_to_keep=len(split_list))
     session = tf.Session()
@@ -142,7 +142,7 @@ if __name__ == '__main__':
     for i in range(1, len(split_list)):
         log_dir = os.path.join(output_log_dir, 'week%d' % i)
         if not os.path.isdir(log_dir):
-            os.mkdir(log_dir)
+            os.makedirs(log_dir)
         test_name = split_list[i]
         test_set = casas_fuel.get_dataset((test_name,), load_in_memory=True)
         (test_set_data) = test_set.data_sources

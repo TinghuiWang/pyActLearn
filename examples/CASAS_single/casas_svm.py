@@ -68,7 +68,7 @@ if __name__ == '__main__':
                 exit('Output directory %s is found, but not a directory. Abort.' % output_dir)
         else:
             # Create directory
-            os.mkdir(output_dir)
+            os.makedirs(output_dir)
     else:
         output_dir = '.'
     log_filename = os.path.join(output_dir, log_filename)
