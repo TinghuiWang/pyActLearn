@@ -92,7 +92,7 @@ class SoftmaxLayer:
                 self.x = x
             if W is None:
                 self.W = tf.Variable(
-                    tf.truncated_normal(shape=[n_in, n_out],stddev=1.0/math.sqrt(float(n_in))),
+                    tf.truncated_normal(shape=[n_in, n_out], stddev=1.0/math.sqrt(float(n_in))),
                     name='weights'
                 )
             else:
