@@ -1,3 +1,4 @@
+import os
 import logging
 import numpy as np
 import tensorflow as tf
@@ -126,13 +127,13 @@ class MLP:
             else:
                 session = self.sess
         if summaries_dir is not None:
-            train_writer = tf.summary.FileWriter(summaries_dir + '/train')
+            train_writer = tf.summary.FileWriter(summaries_dir + '/train', session.graph)
             test_writer = tf.summary.FileWriter(summaries_dir + '/test')
             valid_writer = tf.summary.FileWriter(summaries_dir + '/valid')
         session.run(tf.global_variables_initializer())
         # Get Stopping Criterion
         if criterion == 'const_iteration':
-            criterion = ConstIterations(num_iters=iter_num)
+            _criterion = ConstIterations(num_iters=iter_num)
         elif criterion == 'monitor_based':
             num_samples = x.shape[0]
             valid_set_len = int(1/5 * num_samples)
@@ -175,7 +176,9 @@ class MLP:
             #_ = session.run(self.fit_step, feed_dict={self.x: batch_x, self.y_: batch_y})
             #logger.info('Step %d, training accuracy %g, loss %g' % (i, accuracy, loss))
             i += 1
-        tf.train.Saver().restore(session, summaries_dir + '/best.ckpt')
+        if criterion == 'monitor_based':
+            tf.train.Saver().restore(session, os.path.join(summaries_dir, 'best.ckpt'))
+        logger.debug('Total Epoch: %d, current batch %d', injector.num_epochs, injector.cur_batch)
 
     def predict_accuracy(self, x, y, session=None):
         """Get Accuracy given feature array and corresponding labels
