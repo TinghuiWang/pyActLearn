@@ -63,6 +63,7 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dataset', help='Directory to original datasets')
     parser.add_argument('-o', '--output', help='Output folder')
     parser.add_argument('--h5py', help='HDF5 dataset folder')
+    parser.add_argument('--week', type=int, metavar='N', help='Train on week N-1 and run on week N')
     args = parser.parse_args()
     # Default parameters
     log_filename = os.path.basename(__file__).split('.')[0] + \
@@ -108,7 +109,7 @@ if __name__ == '__main__':
             casas_data = CASASData(path=casas_data_dir)
             casas_data.summary()
             # SVM needs to use statistical feature with per-sensor and normalization
-            casas_data.populate_feature(method='stat', normalized=False, per_sensor=False)
+            casas_data.populate_feature(method='stat', normalized=True, per_sensor=True)
             casas_data.export_hdf5(h5py_dir)
     casas_fuel = CASASFuel(dir_name=h5py_dir)
     # Prepare learning result
@@ -126,6 +127,11 @@ if __name__ == '__main__':
     num_classes = casas_fuel.get_output_dims()
     # Open Fuel and get all splits
     split_list = casas_fuel.get_set_list()
+    # Check single week training
+    if args.week is not None:
+        if 0 < args.week < len(split_list):
+            split_list = [split_list[args.week - 1], split_list[args.week]]
+    # Continue Training
     train_name = split_list[0]
     train_set = casas_fuel.get_dataset((train_name,), load_in_memory=True)
     (train_set_data) = train_set.data_sources
@@ -152,7 +158,7 @@ if __name__ == '__main__':
                                            model=mlp, log_dir=log_dir)
         else:
             prediction = load_and_test(test_name, test_set_data, num_classes, result, model=mlp)
-        casas_fuel.back_annotate(fp_back_annotated, prediction=prediction, split_id=i)
+        casas_fuel.back_annotate(fp_back_annotated, prediction=prediction, split_name=test_name)
         train_name = test_name
         train_set_data = test_set_data
     f = open(result_pkl_file, 'wb')
