@@ -1,0 +1,3 @@
+This folder is intended to tune parameters and test out different learning algorithms and how they perform.
+We will use week 25, 26, 27 and 28 as test set and 4 weeks of data before that as training.
+We will also investigate to see if more training data will help with the accuracy.
