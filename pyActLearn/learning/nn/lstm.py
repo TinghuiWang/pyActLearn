@@ -1,8 +1,10 @@
+import os
 import logging
 import numpy as np
 import tensorflow as tf
 from .layers import HiddenLayer, SoftmaxLayer
 from .injectors import BatchSequenceInjector
+from .criterion import MonitorBased, ConstIterations
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +61,22 @@ class LSTM:
         self.sess = None
 
     def fit(self, x, y, batch_size=100, iter_num=100, summaries_dir=None, summary_interval=10,
-            test_x=None, test_y=None, session=None, criterion=None):
+            test_x=None, test_y=None, session=None, criterion='const_iteration'):
         """Fit the model to the dataset
+
+        Args:
+            x (:obj:`numpy.ndarray`): Input features of shape (num_samples, num_features).
+            y (:obj:`numpy.ndarray`): Corresponding Labels of shape (num_samples) for binary classification,
+                or (num_samples, num_classes) for multi-class classification.
+            batch_size (:obj:`int`): Batch size used in gradient descent.
+            iter_num (:obj:`int`): Number of training iterations for const iterations, step depth for monitor based
+                stopping criterion.
+            summaries_dir (:obj:`str`): Path of the directory to store summaries and saved values.
+            summary_interval (:obj:`int`): The step interval to export variable summaries.
+            test_x (:obj:`numpy.ndarray`): Test feature array used for monitoring training progress.
+            test_y (:obj:`numpy.ndarray): Test label array used for monitoring training progress.
+            session (:obj:`tensorflow.Session`): Session to run training functions.
+            criterion (:obj:`str`): Stopping criteria. 'const_iterations' or 'monitor_based'
         """
         if session is None:
             if self.sess is None:
@@ -74,35 +90,60 @@ class LSTM:
         session.run(tf.global_variables_initializer())
         # Setup batch injector
         injector = BatchSequenceInjector(data_x=x, data_y=y, batch_size=batch_size, seq_len=self.num_steps)
-        # Test sequences
+        # Get Stopping Criterion
+        if criterion == 'const_iteration':
+            _criterion = ConstIterations(num_iters=iter_num)
+        elif criterion == 'monitor_based':
+            num_samples = x.shape[0]
+            valid_set_len = int(1/5 * num_samples)
+            valid_x = x[num_samples-valid_set_len:num_samples, :]
+            valid_y = y[num_samples-valid_set_len:num_samples, :]
+            x = x[0:num_samples-valid_set_len, :]
+            y = y[0:num_samples-valid_set_len, :]
+            _criterion = MonitorBased(n_steps=iter_num,
+                                      monitor_fn=self.predict_accuracy,
+                                      monitor_fn_args=(valid_x, valid_y[self.num_steps:, :]),
+                                      save_fn=tf.train.Saver().save,
+                                      save_fn_args=(session, summaries_dir + '/best.ckpt'))
+        else:
+            logger.error('Wrong criterion %s specified.' % criterion)
+            return
+        # Train/Test sequence for brief reporting of accuracy and loss
+        train_seq_x, train_seq_y = BatchSequenceInjector.to_sequence(
+            self.num_steps, x, y, start=0, end=2000
+        )
         if (test_x is not None) and (test_y is not None):
             test_seq_x, test_seq_y = BatchSequenceInjector.to_sequence(
                 self.num_steps, test_x, test_y, start=0, end=2000
             )
-        train_seq_x, train_seq_y = BatchSequenceInjector.to_sequence(
-            self.num_steps, x, y, start=0, end=2000
-        )
-        for i in range(iter_num):
+        # Iteration Starts
+        i = 0
+        while _criterion.continue_learning():
             batch_x, batch_y = injector.next_batch()
             if summaries_dir is not None and (i % summary_interval == 0):
-                summary = session.run(
-                    self.merged,
+                summary, loss, accuracy = session.run(
+                    [self.merged, self.loss, self.accuracy],
                     feed_dict={self.x: train_seq_x, self.y_: train_seq_y,
                                self.init_state: np.zeros((train_seq_x.shape[0], 2 * self.num_units))}
                 )
                 train_writer.add_summary(summary, i)
+                logger.info('Step %d, train_set accuracy %g, loss %g' % (i, accuracy, loss))
                 if (test_x is not None) and (test_y is not None):
                     merged, accuracy = session.run(
                         [self.merged, self.accuracy],
                         feed_dict={self.x: test_seq_x, self.y_: test_seq_y,
                                    self.init_state: np.zeros((test_seq_x.shape[0], 2*self.num_units))})
                     test_writer.add_summary(merged, i)
-                    print('test accuracy %g' % accuracy)
+                    logger.info('test_set accuracy %g' % accuracy)
             loss, accuracy, _ = session.run(
                 [self.loss, self.accuracy, self.fit_step],
                 feed_dict={self.x: batch_x, self.y_: batch_y,
                            self.init_state: np.zeros((batch_x.shape[0], 2 * self.num_units))})
-            print('Step %d, training accuracy %g, loss %g' % (i, accuracy, loss))
+            i += 1
+        # Finish Iteration
+        if criterion == 'monitor_based':
+            tf.train.Saver().restore(session, os.path.join(summaries_dir, 'best.ckpt'))
+        logger.debug('Total Epoch: %d, current batch %d', injector.num_epochs, injector.cur_batch)
 
     def predict_proba(self, x, session=None, batch_size=500):
         """Predict probability (Softmax)
@@ -147,3 +188,16 @@ class LSTM:
             else:
                 result = np.concatenate((result, batch_y), axis=0)
         return result
+
+    def predict_accuracy(self, x, y, session=None):
+        """Get Accuracy given feature array and corresponding labels
+        """
+        if session is None:
+            if self.sess is None:
+                session = tf.Session()
+                self.sess = session
+            else:
+                session = self.sess
+        predict = self.predict(x, session=session)
+        accuracy = np.sum(predict == y.argmax(y.ndim - 1)) / float(y.shape[0])
+        return accuracy
