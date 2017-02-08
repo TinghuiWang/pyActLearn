@@ -123,12 +123,21 @@ class CASASFuel(object):
         """
         # Verify split id first
         if split_id == -1:
-            if split_name in self.info['split_sets']:
-                split_id = self.info['split_sets'].index(split_name)
+            if type(split_name) is tuple:
+                time_array = []
+                for each_split in split_name:
+                    each_split_id = self.info['split_sets'].index(each_split)
+                    if 0 < each_split_id < len(self.info['split_sets']):
+                        time_array += self.info['split_timearray'][each_split_id]
             else:
-                logger.error('Failed to find split set with name %s.' % split_name)
-                return
-        if 0 < split_id < len(self.info['split_sets']):
+                if split_name in self.info['split_sets']:
+                    split_id = self.info['split_sets'].index(split_name)
+                    if 0 < split_id < len(self.info['split_sets']):
+                        time_array = self.info['split_timearray'][split_id]
+                else:
+                    logger.error('Failed to find split set with name %s.' % split_name)
+                    return
+        elif 0 < split_id < len(self.info['split_sets']):
             time_array = self.info['split_timearray'][split_id]
         else:
             logger.error('Split set index %d out of bound.' % split_id)
@@ -157,12 +166,21 @@ class CASASFuel(object):
         """
         # Verify split id first
         if split_id == -1:
-            if split_name in self.info['split_sets']:
-                split_id = self.info['split_sets'].index(split_name)
+            if type(split_name) is tuple:
+                time_array = []
+                for each_split in split_name:
+                    each_split_id = self.info['split_sets'].index(each_split)
+                    if 0 < each_split_id < len(self.info['split_sets']):
+                        time_array += self.info['split_timearray'][each_split_id]
             else:
-                logger.error('Failed to find split set with name %s.' % split_name)
-                return
-        if 0 < split_id < len(self.info['split_sets']):
+                if split_name in self.info['split_sets']:
+                    split_id = self.info['split_sets'].index(split_name)
+                    if 0 < split_id < len(self.info['split_sets']):
+                        time_array = self.info['split_timearray'][split_id]
+                else:
+                    logger.error('Failed to find split set with name %s.' % split_name)
+                    return
+        elif 0 < split_id < len(self.info['split_sets']):
             time_array = self.info['split_timearray'][split_id]
         else:
             logger.error('Split set index %d out of bound.' % split_id)
@@ -183,7 +201,6 @@ class CASASFuel(object):
                     fp.write(', %s(%g)' % (self.get_activity_by_index(sorted_index[j]),
                                            prediction_proba[i, sorted_index[j]]))
                 fp.write('\n')
-
 
     @staticmethod
     def files_exist(dir_name):
