@@ -9,7 +9,7 @@ def variable_summary(var, tag):
         tag (:obj:`str`): Tag string for the tensor variable.
     """
     summary_array = []
-    with tf.name_scope(tag + 'summaries'):
+    with tf.name_scope(tag + '/summaries'):
         mean = tf.reduce_mean(var)
         summary_array.append(tf.summary.scalar('mean', mean))
         with tf.name_scope('stddev'):
