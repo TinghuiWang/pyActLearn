@@ -182,11 +182,7 @@ class SDA:
                         )
                         valid_writer.add_summary(summary, i)
                         logger.info('Pre-training Layer %d, Step %d, valid loss %g' % (j, i, loss))
-                loss, _ = session.run(
-                    [current_layer.encode_loss, self.encode_opts[j]],
-                    feed_dict={self.x: batch_x, self.y_: batch_y}
-                )
-                logger.info('Pre-training Layer %d, Step %d, training loss %g' % (j, i, loss))
+                _ = session.run(self.encode_opts[j], feed_dict={self.x: batch_x, self.y_: batch_y})
                 i += 1
             if pretrain_criterion == 'monitor_based':
                 tf.train.Saver().restore(session, layer_summaries_dir + '/best.ckpt')
@@ -240,9 +236,7 @@ class SDA:
                                                    feed_dict={self.x: valid_x, self.y_: valid_y})
                     valid_writer.add_summary(merged, i)
                     logger.info('Fine-Tuning: Step %d, valid accuracy %g' % (i, accuracy))
-            loss, accuracy, _ = session.run([self.loss, self.accuracy, self.fine_tuning],
-                                            feed_dict={self.x: batch_x, self.y_: batch_y})
-            logger.info('Fine-Tuning: Step %d, batch accuracy %g, loss %g' % (i, accuracy, loss))
+            _ = session.run(self.fine_tuning, feed_dict={self.x: batch_x, self.y_: batch_y})
             i += 1
         if tuning_criterion == 'monitor_based':
             tf.train.Saver().restore(session, tuning_summaries_dir + '/best.ckpt')
