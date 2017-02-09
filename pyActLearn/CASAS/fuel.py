@@ -121,27 +121,7 @@ class CASASFuel(object):
             split_id (:obj:`int`): The index of split set to be annotated (required if split_name not specified).
             split_name (:obj:`str`): The name of the split set to be annotated (required if split_id is not specified).
         """
-        # Verify split id first
-        if split_id == -1:
-            if type(split_name) is tuple:
-                time_array = []
-                for each_split in split_name:
-                    each_split_id = self.info['split_sets'].index(each_split)
-                    if 0 < each_split_id < len(self.info['split_sets']):
-                        time_array += self.info['split_timearray'][each_split_id]
-            else:
-                if split_name in self.info['split_sets']:
-                    split_id = self.info['split_sets'].index(split_name)
-                    if 0 < split_id < len(self.info['split_sets']):
-                        time_array = self.info['split_timearray'][split_id]
-                else:
-                    logger.error('Failed to find split set with name %s.' % split_name)
-                    return
-        elif 0 < split_id < len(self.info['split_sets']):
-            time_array = self.info['split_timearray'][split_id]
-        else:
-            logger.error('Split set index %d out of bound.' % split_id)
-            return
+        time_array = self._get_time_array(split_id=split_id, split_name=split_name)
         # Check length of prediction and time array
         if prediction.shape[0] != len(time_array):
             logger.error('Prediction size miss-match. There are %d time points with only %d labels given.' %
@@ -164,27 +144,7 @@ class CASASFuel(object):
             split_name (:obj:`str`): The name of the split set to be annotated (required if split_id is not specified).
             top_n (:obj:`int`): Back annotate top n probabilities.
         """
-        # Verify split id first
-        if split_id == -1:
-            if type(split_name) is tuple:
-                time_array = []
-                for each_split in split_name:
-                    each_split_id = self.info['split_sets'].index(each_split)
-                    if 0 < each_split_id < len(self.info['split_sets']):
-                        time_array += self.info['split_timearray'][each_split_id]
-            else:
-                if split_name in self.info['split_sets']:
-                    split_id = self.info['split_sets'].index(split_name)
-                    if 0 < split_id < len(self.info['split_sets']):
-                        time_array = self.info['split_timearray'][split_id]
-                else:
-                    logger.error('Failed to find split set with name %s.' % split_name)
-                    return
-        elif 0 < split_id < len(self.info['split_sets']):
-            time_array = self.info['split_timearray'][split_id]
-        else:
-            logger.error('Split set index %d out of bound.' % split_id)
-            return
+        time_array = self._get_time_array(split_id=split_id, split_name=split_name)
         # Check length of prediction and time array
         if prediction_proba.shape[0] != len(time_array):
             logger.error('Prediction size miss-match. There are %d time points with only %d labels given.' %
@@ -201,6 +161,38 @@ class CASASFuel(object):
                     fp.write(', %s(%g)' % (self.get_activity_by_index(sorted_index[j]),
                                            prediction_proba[i, sorted_index[j]]))
                 fp.write('\n')
+
+    def _get_time_array(self, split_id=-1, split_name=None):
+        """Get Time Array based for specified splits
+
+        Args:
+            split_id (:obj:`int`): The index of split set to be annotated (required if split_name not specified).
+            split_name (:obj:`str`): The name of the split set to be annotated (required if split_id is not specified).
+
+        Returns:
+            :obj:`list` of :obj:`datetime.datetime`: List of event datetime objects of splits specified.
+        """
+        if split_id == -1:
+            if type(split_name) is tuple:
+                time_array = []
+                for each_split in split_name:
+                    each_split_id = self.info['split_sets'].index(each_split)
+                    if 0 < each_split_id < len(self.info['split_sets']):
+                        time_array += self.info['split_timearray'][each_split_id]
+            else:
+                if split_name in self.info['split_sets']:
+                    split_id = self.info['split_sets'].index(split_name)
+                    if 0 < split_id < len(self.info['split_sets']):
+                        time_array = self.info['split_timearray'][split_id]
+                else:
+                    logger.error('Failed to find split set with name %s.' % split_name)
+                    return None
+        elif 0 < split_id < len(self.info['split_sets']):
+            time_array = self.info['split_timearray'][split_id]
+        else:
+            logger.error('Split set index %d out of bound.' % split_id)
+            return None
+        return time_array
 
     @staticmethod
     def files_exist(dir_name):
