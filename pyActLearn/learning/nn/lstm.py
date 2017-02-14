@@ -88,8 +88,6 @@ class LSTM:
             train_writer = tf.summary.FileWriter(summaries_dir + '/train')
             test_writer = tf.summary.FileWriter(summaries_dir + '/test')
         session.run(tf.global_variables_initializer())
-        # Setup batch injector
-        injector = BatchSequenceInjector(data_x=x, data_y=y, batch_size=batch_size, seq_len=self.num_steps)
         # Get Stopping Criterion
         if criterion == 'const_iteration':
             _criterion = ConstIterations(num_iters=iter_num)
@@ -108,6 +106,8 @@ class LSTM:
         else:
             logger.error('Wrong criterion %s specified.' % criterion)
             return
+        # Setup batch injector
+        injector = BatchSequenceInjector(data_x=x, data_y=y, batch_size=batch_size, seq_len=self.num_steps)
         # Train/Test sequence for brief reporting of accuracy and loss
         train_seq_x, train_seq_y = BatchSequenceInjector.to_sequence(
             self.num_steps, x, y, start=0, end=2000
