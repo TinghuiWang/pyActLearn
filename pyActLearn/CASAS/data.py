@@ -1,5 +1,4 @@
 import os
-import sys
 import math
 import h5py
 import pickle
