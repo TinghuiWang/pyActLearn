@@ -8,7 +8,6 @@ import datetime
 import xlsxwriter
 import numpy as np
 import scipy.sparse as sp
-from fuel.datasets.hdf5 import H5PYDataset
 
 from .home import CASASHome
 from .stat_features import EventHour, EventSeconds, LastSensor, WindowDuration, \
@@ -682,6 +681,11 @@ class CASASData(object):
             break_by (:obj:`str`): Select the way to split the data, either by ``'week'`` or ``'day'``
             comments (:obj:`str`): Additional comments to add
         """
+        try:
+            from fuel.datasets.hdf5 import H5PYDataset
+        except ImportError:
+            logger.error('Failed to import H5PYDataset from fuel.')
+            return
         if os.path.exists(directory):
             if os.path.isdir(directory):
                 overwrite = ' '
@@ -693,7 +697,7 @@ class CASASData(object):
                     elif overwrite == '':
                         break
             else:
-                sys.stderr.write('%s is not a directory. Abort.')
+                logger.error('%s is not a directory. Abort.')
                 return
         else:
             os.makedirs(directory)
