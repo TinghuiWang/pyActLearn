@@ -310,4 +310,6 @@ texinfo_documents = [
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3', None),
     'h5py': ('http://docs.h5py.org/en/latest/', None),
-    'fuel': ('https://fuel.readthedocs.io/en/latest', None)}
+    'fuel': ('https://fuel.readthedocs.io/en/latest', None),
+    'numpy': ('https://docs.scipy.org/doc/numpy', None)
+}
