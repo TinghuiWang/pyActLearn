@@ -8,6 +8,8 @@ toolz>=0.8.0
 scikit-learn>=0.18
 Cython>=0.23.4
 tensorflow-gpu>=0.12.1
+matplotlib>=1.5.3
+python-dateutil>=2.6.0
 
 --allow-external theano
 --allow-unverified theano
