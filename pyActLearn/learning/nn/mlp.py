@@ -69,7 +69,7 @@ class MLP:
             self.y_class = tf.cast(tf.greater_equal(self.y, 0.5), tf.float32)
             # Loss
             self.loss = tf.reduce_mean(
-                tf.nn.sigmoid_cross_entropy_with_logits(self.output_layer.logits, self.y_,
+                tf.nn.sigmoid_cross_entropy_with_logits(logits=self.output_layer.logits, labels=self.y_,
                                                         name='SigmoidCrossEntropyLoss')
             )
             self.correct_prediction = tf.equal(self.y_class, self.y_)
@@ -83,7 +83,7 @@ class MLP:
             self.y_class = tf.argmax(self.y, 1)
             # Loss
             self.loss = tf.reduce_mean(
-                tf.nn.softmax_cross_entropy_with_logits(self.output_layer.logits, self.y_,
+                tf.nn.softmax_cross_entropy_with_logits(logits=self.output_layer.logits, labels=self.y_,
                                                         name='SoftmaxCrossEntropyLoss')
             )
             self.correct_prediction = tf.equal(self.y_class, tf.argmax(self.y_, 1))
