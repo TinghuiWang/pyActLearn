@@ -7,18 +7,6 @@ six>=1.10.0
 toolz>=0.8.0
 scikit-learn>=0.18
 Cython>=0.23.4
-tensorflow-gpu>=0.12.1
+tensorflow-gpu>=1.0.1
 matplotlib>=1.5.3
 python-dateutil>=2.6.0
-
---allow-external theano
---allow-unverified theano
-git+https://github.com/Theano/Theano.git#egg=theano
-
---allow-external fuel
---allow-unverified fuel
-git+https://github.com/mila-udem/fuel#egg=fuel
-
---allow-external blocks
---allow-unverified blocks
-git+https://github.com/mila-udem/blocks#egg=blocks

@@ -39,6 +39,10 @@ exec_results = {}
 exec(open(os.path.join(os.path.dirname(__file__), 'pyActLearn/version.py')).read(), exec_results)
 version = exec_results['version']
 
+# Get Install Requirements
+with open(os.path.join(os.path.dirname(__file__), 'requirements.txt'), 'r') as f:
+    install_requires = f.read().splitlines()
+
 
 def do_setup():
     setup(
@@ -55,7 +59,7 @@ def do_setup():
         keywords=' '.join(['activity recognition', 'smart home', 'smart environment']),
         packages=find_packages('.'),
         entry_points={'console_scripts': ['casas_download = pyActLearn.bin.casas_download:main']},
-        install_requires=['numpy>=1.7.1', 'scipy>=0.11', 'six>=1.9.0', 'theano>=0.8.0'],
+        install_requires=install_requires,
         ext_modules=cythonize("pyActLearn/learning/*.pyx", gdb_debug=True)
     )
 
