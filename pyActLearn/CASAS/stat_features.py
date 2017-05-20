@@ -122,18 +122,24 @@ class FeatureTemplate(metaclass=abc.ABCMeta):
 
 
 class EventHour(FeatureTemplate):
-    """Show the hour of the time of current event
+    """Hour of last event.rst.
+    
+    It returns the hour of last sensor event.rst in the sliding window. If ``normalized`` is set to ``True``,
+    the hour is divided by 24, so that the value is bounded between 0 to 1.
+    
+    Args:
+        normalized (:obj:`bool`): If true, the hour is normalized between 0 to 1.
     """
     def __init__(self, normalized=False):
         super().__init__(name='lastEventHour',
-                         description='Time of the last sensor event in window (hour)',
+                         description='Time of the last sensor event.rst in window (hour)',
                          normalized=normalized,
                          per_sensor=False,
                          enabled=True,
                          routine=None)
 
     def get_feature_value(self, data_list, cur_index, window_size, sensor_info, sensor_name=None):
-        """Get the hour when the last sensor event in the window occurred
+        """Get the hour when the last sensor event.rst in the window occurred
 
         Note:
             Please refer to :meth:`~.FeatureTemplate.get_feature_value` for information about
@@ -147,19 +153,25 @@ class EventHour(FeatureTemplate):
 
 
 class EventSeconds(FeatureTemplate):
-    """Feature that shows the time (min, sec) of current event in seconds
+    """Seconds of last event.rst.
+    
+    The time of the hour (in seconds) of the last sensor event.rst in the window. If ``normalized`` is ``True``,
+    the seconds is divided by 3600.
+    
+    Args:
+        normalized (:obj:`bool`): If true, the hour is normalized between 0 to 1.
     """
     def __init__(self, normalized=False):
         super().__init__(
             name='lastEventSeconds',
-            description='Time of the last sensor event in window in seconds',
+            description='Time of the last sensor event.rst in window in seconds',
             normalized=normalized,
             per_sensor=False,
             enabled=True,
             routine=None)
 
     def get_feature_value(self, data_list, cur_index, window_size, sensor_info, sensor_name=None):
-        """Get the time within an hour when the last sensor event in the window occurred (in seconds)
+        """Get the time within an hour when the last sensor event.rst in the window occurred (in seconds)
 
         Note:
             Please refer to :meth:`~.FeatureTemplate.get_feature_value` for information about
@@ -174,7 +186,13 @@ class EventSeconds(FeatureTemplate):
 
 
 class WindowDuration(FeatureTemplate):
-    """Length of the window in seconds
+    """Length of the window.
+    
+    Any sliding window should have a duration of less than half a day. If it is, it is probable that there
+    some missing sensor events, so the statistical features calculated for such a window is invalid.
+
+    Args:
+        normalized (:obj:`bool`): If true, the hour is normalized between 0 to 1.
     """
     def __init__(self, normalized=False):
         super().__init__(name='windowDuration',
@@ -205,9 +223,10 @@ class WindowDuration(FeatureTemplate):
                     data_list[cur_index]['datetime'].day != data_list[cur_index - 1]['datetime'].day:
                 date_advanced = (data_list[cur_index]['datetime'] - data_list[cur_index - 1]['datetime']).days
                 hour_advanced = data_list[cur_index]['datetime'].hour - data_list[cur_index - 1]['datetime'].hour
-                logger.warn(logging_name(self) + ': line %d - %d: %s' %
-                            (cur_index, cur_index + 1, data_list[cur_index - 1]['datetime'].isoformat()))
-                logger.warn(logging_name(self) + ': Date Advanced: %d; hour gap: %d' % (date_advanced, hour_advanced))
+                logger.warning(logging_name(self) + ': line %d - %d: %s' %
+                               (cur_index, cur_index + 1, data_list[cur_index - 1]['datetime'].isoformat()))
+                logger.warning(logging_name(self) + ': Date Advanced: %d; hour gap: %d' %
+                               (date_advanced, hour_advanced))
         if self.normalized:
             # Normalized to 12 hours
             return np.float(window_duration) / (3600 * 12)
@@ -216,7 +235,14 @@ class WindowDuration(FeatureTemplate):
 
 
 class LastSensor(FeatureTemplate):
-    """Get the last sensor in the window
+    """Sensor ID of the last sensor event.rst of the window.
+    
+    For algorithms like decision trees and hidden markov model, sensor ID can be directly used as features.
+    However, in other algorithms such as multi-layer perceptron, or support vector machine, the sensor ID
+    needs to be binary coded.
+    
+    Args:
+        per_sensor (:obj:`bool`): True if the sensor ID needs to be binary coded.
     """
     def __init__(self, per_sensor=False):
         super().__init__(name='lastSensorInWindow',
@@ -226,12 +252,12 @@ class LastSensor(FeatureTemplate):
                          routine=None)
 
     def get_feature_value(self, data_list, cur_index, window_size, sensor_info, sensor_name=None):
-        """Get the sensor which fired the last event in the sliding window.
+        """Get the sensor which fired the last event.rst in the sliding window.
 
         If it is configured as per-sensor feature, it returns 1 if the sensor specified
-        triggers the last event in the window. Otherwise returns 0.
+        triggers the last event.rst in the window. Otherwise returns 0.
         If it is configured as a non-per-sensor feature, it returns the index of the
-        index corresponding to the dominant sensor name that triggered the last event.
+        index corresponding to the dominant sensor name that triggered the last event.rst.
 
         Note:
             Please refer to :meth:`~.FeatureTemplate.get_feature_value` for information about
@@ -248,7 +274,7 @@ class LastSensor(FeatureTemplate):
         else:
             if sensor_info.get(sensor_label, None) is None:
                 self._is_value_valid = False
-                logger.warn(logging_name(self) + ': Cannot find sensor %s in sensor_info' % sensor_label)
+                logger.warning(logging_name(self) + ': Cannot find sensor %s in sensor_info' % sensor_label)
                 logger.debug(logging_name(self) + ': Available sensors are: ' + str(sensor_info.keys()))
                 return 0
             else:
@@ -264,7 +290,7 @@ class SensorCountRoutine(FeatureRoutineTemplate):
     def __init__(self):
         super().__init__(
             name='SensorCountRoutine',
-            description='Count Occurrence of all sensors in current event window',
+            description='Count Occurrence of all sensors in current event.rst window',
             enabled=True
         )
         # Dominant Sensor
@@ -288,7 +314,13 @@ sensor_count_routine = SensorCountRoutine()
 
 
 class SensorCount(FeatureTemplate):
-    """Counts the occurrence of each sensor
+    """Counts the occurrence of each sensor within the sliding window.
+    
+    The count of occurrence of each sensor is normalized to the length (total number of events) of the window if the
+    ``normalized`` is set to True.
+
+    Args:
+        normalized (:obj:`bool`): If true, the count of each sensor is normalized between 0 to 1.
     """
     def __init__(self, normalized=False):
         super().__init__(name='sensorCount',
@@ -388,7 +420,8 @@ class DominantSensorRoutine(FeatureRoutineTemplate):
         information is fetched by dominant sensor features.
         """
         if cur_index < window_size:
-            logger.warn(logging_name(self) + ': current index %d is smaller than window size %d.' % (cur_index, window_size))
+            logger.warning(logging_name(self) + ': current index %d is smaller than window size %d.' %
+                           (cur_index, window_size))
         sensor_count = {}
         for index in range(0, window_size):
             if data_list[cur_index - index]['sensor_id'] in sensor_count.keys():
@@ -409,7 +442,12 @@ dominant_sensor_routine = DominantSensorRoutine()
 
 
 class DominantSensor(FeatureTemplate):
-    """Dominant Sensor of current window
+    """Dominant Sensor of current window.
+    
+    The sensor that fires the most amount of sensor event.rst in the current window.
+    
+    Args:
+        per_sensor (:obj:`bool`): True if the sensor ID needs to be binary coded.
     """
     def __init__(self, per_sensor=False):
         super().__init__(name='DominantSensor',
@@ -426,7 +464,7 @@ class DominantSensor(FeatureTemplate):
         self._is_value_valid = True
         dominant_sensor_label = self.routine.dominant_sensor_list.get(cur_index, None)
         if dominant_sensor_label is None:
-            logger.warn(logging_name(self) + ': cannot find dominant sensor label for window index %d' % cur_index)
+            logger.warning(logging_name(self) + ': cannot find dominant sensor label for window index %d' % cur_index)
         if self.per_sensor:
             if sensor_name is not None:
                 if sensor_name == dominant_sensor_label:
@@ -438,7 +476,12 @@ class DominantSensor(FeatureTemplate):
 
 
 class DominantSensorPreviousWindow(FeatureTemplate):
-    """Dominant Sensor of previous window
+    """Dominant Sensor of previous window.
+    
+    The sensor that fires the most amount of sensor event.rst in the current window.
+    
+    Args:
+        per_sensor (:obj:`bool`): True if the sensor ID needs to be binary coded.    
     """
     def __init__(self, per_sensor=False):
         super().__init__(name='DominantSensorPreviousWindow',
@@ -454,7 +497,7 @@ class DominantSensorPreviousWindow(FeatureTemplate):
         """
         dominant_sensor_label = self.routine.dominant_sensor_list.get([cur_index-1], None)
         if dominant_sensor_label is None:
-            logger.warn(logging_name(self) + ': cannot find dominant sensor label for window index %d' % cur_index)
+            logger.warning(logging_name(self) + ': cannot find dominant sensor label for window index %d' % cur_index)
         if self.per_sensor:
             if sensor_name is not None:
                 if sensor_name == dominant_sensor_label:

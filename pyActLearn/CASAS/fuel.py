@@ -170,7 +170,7 @@ class CASASFuel(object):
             split_name (:obj:`str`): The name of the split set to be annotated (required if split_id is not specified).
 
         Returns:
-            :obj:`list` of :obj:`datetime.datetime`: List of event datetime objects of splits specified.
+            :obj:`list` of :obj:`datetime.datetime`: List of event.rst datetime objects of splits specified.
         """
         if split_id == -1:
             if type(split_name) is tuple:
@@ -187,7 +187,7 @@ class CASASFuel(object):
                 else:
                     logger.error('Failed to find split set with name %s.' % split_name)
                     return None
-        elif 0 < split_id < len(self.info['split_sets']):
+        elif -1 < split_id < len(self.info['split_sets']):
             time_array = self.info['split_timearray'][split_id]
         else:
             logger.error('Split set index %d out of bound.' % split_id)

@@ -16,22 +16,23 @@ logger = logging.getLogger(__name__)
 
 
 class CASASData(object):
-    """A class to load activity data from CASAS datasets
-
-    This class is used to load activity data from CASAS datasets, compute data statistics and basic visualization
-    of the statistics.
-
+    r"""A class to load activity data from CASAS smart home datasets.
+    
+    The class load raw activity sensor events from CASAS smart home datasets. The class provides methods to
+    pre-process the data for future learning algorithms for activity recognition. The pre-processed data can
+    be exported to xlsx files for verification, and hdf5 file for faster read and search when evaluating a
+    activity recognition algorithm.
+    
     Args:
-        path (:obj:`str`): path to a dataset directory, the dataset event file for dataset in legacy format, or
-            a pickle file that stored a CASASData structure.
+        path (:obj:`str`): path to a dataset directory, the dataset event.rst file for dataset in legacy format.
 
     Attributes:
-        sensor_list (:obj:`dict`): A dictionary containing sensor information
-        activity_list (:obj:`dict`): A dictionary containing activity information
-        event_list (:obj:`list` of :obj:`dict`): List of data used to store raw events
-        x (:obj:`numpy.ndarray`): 2D numpy array that contains calculated feature data
+        sensor_list (:obj:`dict`): A dictionary containing sensor information.
+        activity_list (:obj:`dict`): A dictionary containing activity information.
+        event_list (:obj:`list` of :obj:`dict`): List of data used to store raw events.
+        x (:obj:`numpy.ndarray`): 2D numpy array that contains calculated feature data.
         y (:obj:`numpy.ndarray`): 2D numpy array that contains activity label corresponding to feature array
-        data_path (:obj:`str`): path to data file
+        data_path (:obj:`str`): path to data file.
         home (:class:`pyActLearn.CASAS.home.CASASHome`): :class:`CASAS.home.CASASHome` object that stores
             the home information associated with the dataset.
         is_legacy (:obj:`bool`): Defaults to False. If the dataset loaded is in legacy format or not.
@@ -67,7 +68,7 @@ class CASASData(object):
         self.max_window_size = 30
         self.feature_list = {}
         self.routines = {}
-        self.num_enabled_features = 0
+        self.num_feature_columns = 0
         self.num_static_features = 0
         self.num_per_sensor_features = 0
         # From which source to construct CASAS data
@@ -307,12 +308,12 @@ class CASASData(object):
             :obj:`tuple` of :obj:`str`: (feature name, sensor name) tuple.
                 If it is not per-sensor feature, the sensor name is None.
         """
-        max_id = self.num_enabled_features
+        max_id = self.num_feature_columns
         num_enabled_sensors = len(self.get_enabled_sensors())
         if index > max_id:
             logger.error('index %d is greater than the number of feature columns %d' %
                          (index, max_id))
-        if index > self.num_static_features:
+        if index >= self.num_static_features:
             # It is per_sensor Feature
             sensor_id = (index - self.num_static_features) % num_enabled_sensors
             feature_id = math.floor((index - self.num_static_features) / num_enabled_sensors)
@@ -330,7 +331,7 @@ class CASASData(object):
                 feature_name = featureLabel
                 break
         sensor_name = 'Window'
-        if sensor_id > 0:
+        if sensor_id >= 0:
             for sensor_label in self.sensor_list.keys():
                 sensor = self.sensor_list[sensor_label]
                 if sensor['index'] == sensor_id:
@@ -352,12 +353,13 @@ class CASASData(object):
             # It is stat feature
             feature_name, sensor_name = self.get_feature_by_index(index)
             if feature_name is None or sensor_name is None:
-                logger.error('Failed to find feature/sensor name for feature %d' % index)
+                logger.error('Failed to find feature/sensor name for feature %d - got (%s/%s)' %
+                             (index, str(feature_name), str(sensor_name)))
                 return 'None'
             else:
                 return sensor_name + ": " + feature_name
         else:
-            # It is a windowed event feature
+            # It is a windowed event.rst feature
             if self.x.shape[1] == 2 * self.events_in_window:
                 # Sensor ID is presented as integer
                 entry_num = int(index / 2)
@@ -399,9 +401,9 @@ class CASASData(object):
 
     # region LoadFromFile
     def _load_events_from_legacy(self, filename):
-        """Load CASAS data from annotated event logs
+        """Load CASAS data from annotated event.rst logs
         
-        It loads sensor event logs from legacy event log txt file, and populate :obj:`event_list`.
+        It loads sensor event.rst logs from legacy event.rst log txt file, and populate :obj:`event_list`.
         As legacy file does not come with information regarding the smart home, the procedure also adds
         populates :obj:`self.activity_list` and :obj:`self.sensor_list` as well.
         
@@ -452,16 +454,16 @@ class CASASData(object):
             raise FileNotFoundError('Cannot find file %s' % filename)
 
     def _load_events_from_dataset(self, filename):
-        """Load events from CASAS event list in csv format
+        """Load events from CASAS event.rst list in csv format
 
-        It loads sensor event logs from legacy event log txt file, and populate :obj:`event_list`.
+        It loads sensor event.rst logs from legacy event.rst log txt file, and populate :obj:`event_list`.
 
         .. note::
         
             This is a internal function that is not recommended for user to call directly.
 
         Args:
-            filename (:obj:`str`): path to ``event.csv`` file in the dataset
+            filename (:obj:`str`): path to ``event.rst.csv`` file in the dataset
         """
         self.event_list = []
         self.is_labeled = False
@@ -573,7 +575,7 @@ class CASASData(object):
         while cur_row_id < len(self.event_list):
             cur_sample_id += self._calculate_window_feature(cur_row_id, cur_sample_id)
             cur_row_id += 1
-        # Due to sensor event discontinuity, the sample size will be smaller than the num_feature_rows calculated
+        # Due to sensor event.rst discontinuity, the sample size will be smaller than the num_feature_rows calculated
         self.x = self.x[0:cur_sample_id, :]
         self.y = self.y[0:cur_sample_id]
         self.is_stat_feature = True
@@ -590,7 +592,7 @@ class CASASData(object):
         num_sample = 0
         if self.is_labeled:
             # If labeled, count enabled activity entry after the first
-            # max_window_size event
+            # max_window_size event.rst
             for event in self.event_list:
                 if num_sample < self.max_window_size + self.events_in_window - 2:
                     num_sample += 1
@@ -626,13 +628,13 @@ class CASASData(object):
                 return 0
         if cur_row_id > self.max_window_size - 1:
             if cur_sample_id == 0:
-                for i in range(self.num_enabled_features * (self.events_in_window - 1)):
-                    self.x[cur_sample_id][self.num_enabled_features*self.events_in_window-i-1] = \
-                        self.x[cur_sample_id][self.num_enabled_features * (self.events_in_window-1)-i-1]
+                for i in range(self.num_feature_columns * (self.events_in_window - 1)):
+                    self.x[cur_sample_id][self.num_feature_columns * self.events_in_window - i - 1] = \
+                        self.x[cur_sample_id][self.num_feature_columns * (self.events_in_window - 1) - i - 1]
             else:
-                for i in range(self.num_enabled_features * (self.events_in_window - 1)):
-                    self.x[cur_sample_id][self.num_enabled_features*self.events_in_window-i-1] = \
-                        self.x[cur_sample_id-1][self.num_enabled_features * (self.events_in_window-1)-i-1]
+                for i in range(self.num_feature_columns * (self.events_in_window - 1)):
+                    self.x[cur_sample_id][self.num_feature_columns * self.events_in_window - i - 1] = \
+                        self.x[cur_sample_id-1][self.num_feature_columns * (self.events_in_window - 1) - i - 1]
         # Execute feature update routine
         for (key, routine) in self.routines.items():
             if routine.enabled:
@@ -672,7 +674,7 @@ class CASASData(object):
     # endregion
 
     # region ExportToIntermediateFiles
-    def export_hdf5(self, directory, break_by='week', comments=''):
+    def export_fuel(self, directory, break_by='week', comments=''):
         """Export feature and label vector into hdf5 file and store the class information in a pickle file
 
         Args:
@@ -748,6 +750,47 @@ class CASASData(object):
         }
         pickle.dump(dataset_info, f, pickle.HIGHEST_PROTOCOL)
         f.close()
+
+    def export_hdf5(self, filename, comments='', bg_activity='Other_Activity', driver=None):
+        """Export the dataset into a hdf5 dataset file with meta-data logged in attributes.
+        
+        To load the data, you can use :class:`pyActLearn.CASAS.h5py.CASASH5PY` class.
+        
+        Args:
+            filename (:obj:`str`): The directory to save hdf5 and complementary dataset information.
+            comments (:obj:`str`): Additional comments to add.
+            bg_activity (:obj:`str`): Background activity label.
+            driver (:obj:`str`): h5py dataset R/W driver.
+        """
+        # Collect metadata
+        feature_description = [
+            self.get_feature_string_by_index(feature_id)
+            for feature_id in range(self.x.shape[1])
+        ]
+        target_description = [
+            self.get_activity_by_index(activity_id)
+            for activity_id in range(len(self.get_enabled_activities()))
+        ]
+        target_colors = [
+            self.get_activity_color(activity_name)
+            for activity_name in target_description
+        ]
+        from .h5py import CASASH5PY
+        casas_hdf5 = CASASH5PY(filename, mode='w', driver=driver)
+        casas_hdf5.create_features(feature_array=self.x,
+                                   feature_description=feature_description)
+        casas_hdf5.create_targets(target_array=self.y,
+                                  target_description=target_description,
+                                  target_colors=target_colors)
+        casas_hdf5.create_time_list(time_array=self.time_list)
+        casas_hdf5.create_splits(days=self._break_by_day(), weeks=self._break_by_week())
+        casas_hdf5.create_comments(comments)
+        casas_hdf5.create_sensors(sensors=[self.get_sensor_by_index(i)
+                                           for i in range(len(self.get_enabled_sensors()))])
+        if bg_activity is not None:
+            casas_hdf5.set_background_target(bg_activity)
+        casas_hdf5.flush()
+        casas_hdf5.close()
 
     def write_to_xlsx(self, filename, start=0, end=-1):
         """Write to file in xlsx format
@@ -1108,15 +1151,15 @@ class CASASData(object):
         Returns:
             :obj:`int`: size of feature columns
         """
-        self.num_enabled_features = 0
+        self.num_feature_columns = 0
         num_enabled_sensors = len(self.get_enabled_sensors())
         for feature_name in self.feature_list.keys():
             if self.feature_list[feature_name].enabled:
                 if self.feature_list[feature_name].per_sensor:
-                    self.num_enabled_features += num_enabled_sensors
+                    self.num_feature_columns += num_enabled_sensors
                 else:
-                    self.num_enabled_features += 1
-        return self.num_enabled_features * self.events_in_window
+                    self.num_feature_columns += 1
+        return self.num_feature_columns * self.events_in_window
     # endregion
 
     # region Segmentation
@@ -1124,7 +1167,7 @@ class CASASData(object):
         """Find the split point of the dataset by day
 
         Returns:
-            :obj:`list` of :obj:`int`: List of indices of the event at the beginning of each day
+            :obj:`list` of :obj:`int`: List of indices of the event.rst at the beginning of each day
         """
         day_index_list = [0]
         start_date = self.time_list[0].date()
@@ -1140,7 +1183,7 @@ class CASASData(object):
         """Find the split point of the dataset by week
 
         Returns:
-            :obj:`list` of :obj:`int`: List of indices of the event at the beginning of each week
+            :obj:`list` of :obj:`int`: List of indices of the event.rst at the beginning of each week
         """
         week_index_list = [0]
         start_date = self.time_list[0].date()
