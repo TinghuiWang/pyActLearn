@@ -1,3 +1,8 @@
+"""Reference Document:
+    Sokolova, M., & Lapalme, G. (2009). A systematic analysis of performance measures for classification tasks.
+    Information Processing and Management, 45, p. 427-437
+"""
+
 import logging
 import numpy as np
 
@@ -11,6 +16,16 @@ overall_performance_index = ['average accuracy', 'weighed accuracy',
                              'precision (micro)', 'recall (micro)', 'f-1 score (micro)',
                              'precision (macro)', 'recall (macro)', 'f-1 score (macro)',
                              'exact matching ratio']
+
+
+def get_confusion_matrix_by_activity(num_classes, label, predicted):
+    """Calculate confusion matrix based on activity accuracy
+
+    Instead of calculating confusion matrix by comparing ground truth and predicted
+    result one by one, it compares if a segment of activity is correctly predicted.
+    It also logs the shift of activity predicted versus labeled.
+    """
+    return
 
 
 def get_confusion_matrix(num_classes, label, predicted):
@@ -31,44 +46,46 @@ def get_confusion_matrix(num_classes, label, predicted):
 
 
 def get_performance_array(confusion_matrix):
-    """Calculate performance matrix based on the given confusion matrix
-
-    Gets performance array for each class
-    0 - True_Positive: number of samples that belong to class and classified correctly
-    1 - True_Negative: number of samples that correctly classified as not belonging to class
-    2 - False_Positive: number of samples that belong to class and not classified correctMeasure:
-    3 - False_Negative: number of samples that do not belong to class but classified as class
-    4 - Accuracy: Overall, how often is the classifier correct? (TP + TN) / (TP + TN + FP + FN)
-    5 - Misclassification: Overall, how often is it wrong? (FP + FN) / (TP + TN + FP + FN)
-    6 - Recall: When it's actually yes, how often does it predict yes? TP / (TP + FN)
-    7 - False Positive Rate: When it's actually no, how often does it predict yes? FP / (FP + TN)
-    8 - Specificity: When it's actually no, how often does it predict no? TN / (FP + TN)
-    9 - Precision: When it predicts yes, how often is it correct? TP / (TP + FP)
-    10 - Prevalence: How often does the yes condition actually occur in our sample? Total(class) / Total(samples)
-    11 - F(1) Measure: 2 * (precision * recall) / (precision + recall)
-    12 - G Measure:  sqrt(precision * recall)
+    r"""Calculate performance matrix based on the given confusion matrix
+    
+    [Sokolova2009]_ provides a detailed analysis for multi-class performance metrics.
+    
+    Per-class performance metrics:
+    
+    0. **True_Positive**: number of samples that belong to class and classified correctly
+    1. **True_Negative**: number of samples that correctly classified as not belonging to class
+    2. **False_Positive**: number of samples that belong to class and not classified correctMeasure:
+    3. **False_Negative**: number of samples that do not belong to class but classified as class
+    4. **Accuracy**: Overall, how often is the classifier correct? (TP + TN) / (TP + TN + FP + FN)
+    5. **Misclassification**: Overall, how often is it wrong? (FP + FN) / (TP + TN + FP + FN)
+    6. **Recall**: When it's actually yes, how often does it predict yes? TP / (TP + FN)
+    7. **False Positive Rate**: When it's actually no, how often does it predict yes? FP / (FP + TN)
+    8. **Specificity**: When it's actually no, how often does it predict no? TN / (FP + TN)
+    9. **Precision**: When it predicts yes, how often is it correct? TP / (TP + FP)
+    10. **Prevalence**: How often does the yes condition actually occur in our sample? Total(class) / Total(samples)
+    11. **F(1) Measure**: 2 * (precision * recall) / (precision + recall)
+    12. **G Measure**:  sqrt(precision * recall)
 
     Gets Overall Performance for the classifier
-    0 - Average Accuracy: The average per-class effectiveness of a classifier
-    1 - Weighed Accuracy: The average effectiveness of a classifier weighed by prevalence of each class
-    2 - Precision (micro): Agreement of the class labels with those of a classifiers if calculated from sums of per-text
-                           decision
-    3 - Recall (micro): Effectiveness of a classifier to identify class labels if calculated from sums of per-text
-                        decisions
-    4 - F-Score (micro): Relationship between data's positive labels and those given by a classifier based on a sums of
-                         per-text decisions
-    5 - Precision (macro): An average per-class agreement of the data class labels with those of a classifiers
-    6 - Recall (macro): An average per-class effectiveness of a classifier to identify class labels
-    7 - F-Score (micro): Relations between data's positive labels and those given by a classifier based on a per-class
-                         average
-    8 - Exact Matching Ratio: The average per-text exact classification
+    
+    0. **Average Accuracy**: The average per-class effectiveness of a classifier
+    1. **Weighed Accuracy**: The average effectiveness of a classifier weighed by prevalence of each class
+    2. **Precision (micro)**: Agreement of the class labels with those of a classifiers if calculated from sums of per-text
+       decision
+    3. **Recall (micro)**: Effectiveness of a classifier to identify class labels if calculated from sums of per-text
+       decisions
+    4. **F-Score (micro)**: Relationship between data's positive labels and those given by a classifier based on a sums of
+       per-text decisions
+    5. **Precision (macro)**: An average per-class agreement of the data class labels with those of a classifiers
+    6. **Recall (macro)**: An average per-class effectiveness of a classifier to identify class labels
+    7. **F-Score (micro)**: Relations between data's positive labels and those given by a classifier based on a per-class
+       average
+    8. **Exact Matching Ratio**: The average per-text exact classification
 
-    Note: In Multi-class classification, Micro-Precision == Micro-Recall == Micro-FScore == Exact Matching Ratio
-    (Multi-class classification: each input is to be classified into one and only one class)
-
-    Reference Document:
-    Sokolova, M., & Lapalme, G. (2009). A systematic analysis of performance measures for classification tasks.
-    Information Processing and Management, 45, p. 427-437
+    .. note:: 
+       
+       In Multi-class classification, Micro-Precision == Micro-Recall == Micro-FScore == Exact Matching Ratio
+       (Multi-class classification: each input is to be classified into one and only one class)
 
     Args:
         num_classes (:obj:`int`): Number of classes
