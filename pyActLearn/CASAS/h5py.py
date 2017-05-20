@@ -221,7 +221,7 @@ class CASASHDF5:
         self._feature_description = feature_description
         # Create feature array
         dset = self._file.create_dataset('features', data=feature_array,
-                                         chuncks=True, compression="gzip", compression_opts=9)
+                                         chunks=True, compression="gzip", compression_opts=9)
         dset.dims[0].label = 'batch'
         dset.dims[1].label = 'feature'
         # Add Feature Description as attributes
@@ -305,13 +305,13 @@ class CASASHDF5:
             days_array[i]['name'] = ('day_%d' % i).encode('utf-8')
             days_array[i]['start'] = days[i]
             days_array[i]['stop'] = days[i+1]
-            days[('day_%d' % i)] = [days[i], days[i+1]]
+            self._days[('day_%d' % i)] = [days[i], days[i+1]]
         # Populate weeks array
         for i in range(len(weeks) - 1):
             weeks_array[i]['name'] = ('week_%d' % i).encode('utf-8')
             weeks_array[i]['start'] = weeks[i]
             weeks_array[i]['stop'] = weeks[i+1]
-            weeks[('week_%d' % i)] = [weeks[i], weeks[i+1]]
+            self._weeks[('week_%d' % i)] = [weeks[i], weeks[i+1]]
         # Set attributes
         self._file.attrs['days'] = days_array
         self._file.attrs['weeks'] = weeks_array

@@ -775,8 +775,8 @@ class CASASData(object):
             self.get_activity_color(activity_name)
             for activity_name in target_description
         ]
-        from .h5py import CASASH5PY
-        casas_hdf5 = CASASH5PY(filename, mode='w', driver=driver)
+        from .h5py import CASASHDF5
+        casas_hdf5 = CASASHDF5(filename, mode='w', driver=driver)
         casas_hdf5.create_features(feature_array=self.x,
                                    feature_description=feature_description)
         casas_hdf5.create_targets(target_array=self.y,
