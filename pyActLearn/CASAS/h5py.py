@@ -283,7 +283,7 @@ class CASASHDF5:
             return
         self._days = OrderedDict()
         self._weeks = OrderedDict()
-        max_name_len = len('week_%d' % len(self._days))
+        max_name_len = len('week_%d' % len(days))
         # Create days numpy array
         days_array = np.empty(
             len(days) - 1,
