@@ -1,3 +1,4 @@
+import sys
 import logging
 import numpy as np
 import matplotlib.pyplot as plt
@@ -237,7 +238,7 @@ def draw_timeliness_hist(classes, class_colors, truth, prediction, truth_scoring
     """Get Timeliness Histogram for underfill and overfill
     """
     start_mismatch, stop_mismatch = _get_timeliness_measures(classes, truth, prediction,
-                                                             truth_scoring, prediction_scoring, time_list)
+                                                             time_list)
     bg_id = _get_bg_class_id(classes, background_class)
     num_classes = len(classes)
     # Plot histogram
@@ -264,7 +265,205 @@ def draw_timeliness_hist(classes, class_colors, truth, prediction, truth_scoring
     plt.show()
 
 
-def _get_timeliness_measures(classes, truth, prediction, truth_scoring, prediction_scoring, time_list):
+def _find_overlap_seg(seg_list, id):
+    for seg_id in range(len(seg_list)):
+        if seg_list[seg_id][1] < id:
+            continue
+        elif seg_list[seg_id][0] > id:
+            return -1
+        else:
+            return seg_id
+    return -1
+
+
+def _find_seg_start_within(seg_list, start, stop):
+    for seg_id in range(len(seg_list)):
+        if seg_list[seg_id][0] < start:
+            continue
+        elif seg_list[seg_id][0] > stop:
+            return -1
+        else:
+            return seg_id
+    return -1
+
+
+def _find_seg_end_within(seg_list, start, stop):
+    found_seg_id = -1
+    for seg_id in range(len(seg_list)):
+        if seg_list[seg_id][1] < start:
+            continue
+        elif seg_list[seg_id][0] > stop:
+            return found_seg_id
+        else:
+            found_seg_id = seg_id
+    return found_seg_id
+
+
+def _get_timeoffset_measures(classes, truth, prediction, time_list):
+    num_classes = len(classes)
+    start_mismatch = [list([]) for i in range(num_classes)]
+    stop_mismatch = [list([]) for i in range(num_classes)]
+    # Processing segmentation first!
+    for j in range(num_classes):
+        pred_segs = []
+        truth_segs = []
+        prev_pred = False
+        prev_truth = False
+        tseg_start = 0
+        tseg_stop = 0
+        pseg_start = 0
+        pseg_stop = 0
+        for i in range(truth.shape[0]):
+            cur_truth = (int(truth[i]) == j)
+            cur_pred = (int(prediction[i]) == j)
+            # Truth segments
+            if cur_truth != prev_truth:
+                if cur_truth:
+                    tseg_start = i
+                elif tseg_stop != 0:
+                    truth_segs.append((tseg_start, tseg_stop))
+            tseg_stop = i
+            # Prediction segments
+            if cur_pred != prev_pred:
+                if cur_pred:
+                    pseg_start = i
+                elif pseg_stop != 0:
+                    pred_segs.append((pseg_start, pseg_stop))
+            pseg_stop = i
+            prev_truth = cur_truth
+            prev_pred = cur_pred
+        # Add compensated segments to predictions egments
+        for ts, (tseg_start, tseg_stop) in enumerate(truth_segs):
+            ps = _find_overlap_seg(pred_segs, tseg_start)
+            if ps == -1:
+                # potential underfill or deletion
+                ps = _find_seg_start_within(pred_segs, tseg_start, tseg_stop)
+                if ps != -1:
+                    pseg_start = pred_segs[ps][0]
+                    offset = (time_list[tseg_start] - time_list[pseg_start]).total_seconds()
+                    if abs(offset) < 18000:
+                        start_mismatch[j].append(offset)
+            else:
+                pseg_start = pred_segs[ps][0]
+                # Check the end of previous truth
+                if ts > 1 and truth_segs[ts-1][1] >= pseg_start:
+                    continue
+                else:
+                    offset = (time_list[tseg_start] - time_list[pseg_start]).total_seconds()
+                    if abs(offset) < 18000:
+                        # Calculate overfill
+                        start_mismatch[j].append((time_list[tseg_start] - time_list[pseg_start]).total_seconds())
+        for ts, (tseg_start, tseg_stop) in enumerate(truth_segs):
+            ps = _find_overlap_seg(pred_segs, tseg_stop)
+            if ps == -1:
+                # potential underfill or deletion
+                ps = _find_seg_end_within(pred_segs, tseg_start, tseg_stop)
+                if ps != -1:
+                    pseg_stop = pred_segs[ps][1]
+                    offset = (time_list[tseg_stop] - time_list[pseg_stop]).total_seconds()
+                    if tseg_stop != pseg_stop and abs(offset) < 18000:
+                        stop_mismatch[j].append(offset)
+            else:
+                pseg_stop = pred_segs[ps][1]
+                # Check the end of previous truth
+                if ts < len(truth_segs) - 1 and truth_segs[ts-1][0] <= pseg_stop:
+                    continue
+                else:
+                    offset = (time_list[tseg_stop] - time_list[pseg_stop]).total_seconds()
+                    if abs(offset) < 18000:
+                        # Calculate overfill
+                        stop_mismatch[j].append(offset)
+        # print("class: %d" % j)
+        # print("pred_segs: %d %s" % (len(pred_segs), str(pred_segs)))
+        # print("truth_segs: %d %s" % (len(truth_segs), str(truth_segs)))
+        # print("start_mismatch: %s" % start_mismatch)
+        # print("stop_mismatch: %s" % stop_mismatch)
+    return start_mismatch, stop_mismatch
+
+
+def _get_timeliness_measures(classes, truth, prediction, time_list):
+    num_classes = len(classes)
+    start_mismatch = [list([]) for i in range(num_classes)]
+    stop_mismatch = [list([]) for i in range(num_classes)]
+    # Processing segmentation first!
+    for j in range(num_classes):
+        pred_segs = []
+        truth_segs = []
+        prev_pred = False
+        prev_truth = False
+        tseg_start = 0
+        tseg_stop = 0
+        pseg_start = 0
+        pseg_stop = 0
+        for i in range(truth.shape[0]):
+            cur_truth = (int(truth[i]) == j)
+            cur_pred = (int(prediction[i]) == j)
+            # Truth segments
+            if cur_truth != prev_truth:
+                if cur_truth:
+                    tseg_start = i
+                elif tseg_stop != 0:
+                    truth_segs.append((tseg_start, tseg_stop))
+            tseg_stop = i
+            # Prediction segments
+            if cur_pred != prev_pred:
+                if cur_pred:
+                    pseg_start = i
+                elif pseg_stop != 0:
+                    pred_segs.append((pseg_start, pseg_stop))
+            pseg_stop = i
+            prev_truth = cur_truth
+            prev_pred = cur_pred
+        # Add compensated segments to predictions egments
+        for ts, (tseg_start, tseg_stop) in enumerate(truth_segs):
+            ps = _find_overlap_seg(pred_segs, tseg_start)
+            if ps == -1:
+                # potential underfill or deletion
+                ps = _find_seg_start_within(pred_segs, tseg_start, tseg_stop)
+                if ps != -1:
+                    pseg_start = pred_segs[ps][0]
+                    offset = (time_list[tseg_start] - time_list[pseg_start]).total_seconds()
+                    if tseg_start != pseg_start and abs(offset) < 18000:
+                        start_mismatch[j].append(offset)
+            else:
+                pseg_start = pred_segs[ps][0]
+                # Check the end of previous truth
+                if ts > 1 and truth_segs[ts-1][1] >= pseg_start:
+                    continue
+                else:
+                    offset = (time_list[tseg_start] - time_list[pseg_start]).total_seconds()
+                    if tseg_start != pseg_start and abs(offset) < 18000:
+                        # Calculate overfill
+                        start_mismatch[j].append((time_list[tseg_start] - time_list[pseg_start]).total_seconds())
+        for ts, (tseg_start, tseg_stop) in enumerate(truth_segs):
+            ps = _find_overlap_seg(pred_segs, tseg_stop)
+            if ps == -1:
+                # potential underfill or deletion
+                ps = _find_seg_end_within(pred_segs, tseg_start, tseg_stop)
+                if ps != -1:
+                    pseg_stop = pred_segs[ps][1]
+                    offset = (time_list[tseg_stop] - time_list[pseg_stop]).total_seconds()
+                    if tseg_stop != pseg_stop and abs(offset) < 18000:
+                        stop_mismatch[j].append(offset)
+            else:
+                pseg_stop = pred_segs[ps][1]
+                # Check the end of previous truth
+                if ts < len(truth_segs) - 1 and truth_segs[ts-1][0] <= pseg_stop:
+                    continue
+                else:
+                    offset = (time_list[tseg_stop] - time_list[pseg_stop]).total_seconds()
+                    if tseg_stop != pseg_stop and abs(offset) < 18000:
+                        # Calculate overfill
+                        stop_mismatch[j].append(offset)
+        # print("class: %d" % j)
+        # print("pred_segs: %d %s" % (len(pred_segs), str(pred_segs)))
+        # print("truth_segs: %d %s" % (len(truth_segs), str(truth_segs)))
+        # print("start_mismatch: %s" % start_mismatch)
+        # print("stop_mismatch: %s" % stop_mismatch)
+    return start_mismatch, stop_mismatch
+
+
+def _get_timeliness_measures_depricated(classes, truth, prediction, truth_scoring, prediction_scoring, time_list):
     num_classes = len(classes)
     start_mismatch = [list([]) for i in range(num_classes)]
     stop_mismatch = [list([]) for i in range(num_classes)]
@@ -325,3 +524,293 @@ def _get_timeliness_measures(classes, truth, prediction, truth_scoring, predicti
         stop_mismatch[i].sort()
     # Return
     return start_mismatch, stop_mismatch
+
+
+def generate_latex_table(methods, classes, recall_metrics, precision_matrics,
+                          background_class=None, filename=None,
+                          as_percent=True, metric_name='recall'):
+    bg_class_id = _get_bg_class_id(classes, background_class)
+    metric_labels, metric_indices = _get_metric_label_dict(metric_name='recall')
+    rmp = _gether_per_class_metrics(methods, classes, recall_metrics, True,
+                                    metric_labels, metric_indices)
+    rmr = _gether_per_class_metrics(methods, classes, recall_metrics, False,
+                                    metric_labels, metric_indices)
+    metric_labels, metric_indices = _get_metric_label_dict(metric_name='precision')
+    pmp = _gether_per_class_metrics(methods, classes, precision_matrics, True,
+                                    metric_labels, metric_indices)
+    pmr = _gether_per_class_metrics(methods, classes, precision_matrics, False,
+                                    metric_labels, metric_indices)
+    if filename is None:
+        f = sys.stdout
+    else:
+        f = open(filename, 'w')
+    f.write('\\multirow{2}{*}{Models} & \\multirow{2}{*}{Activities} & '
+            '\\multirow{2}{*}{Total Truth} & \\multicolumn{2}{|c|}{Recall} & '
+            '\\multirow{2}{*}{Total Prediction} & \\multicolumn{2}{|c|}{Precision}  \\\\ \\hline\n')
+    f.write('& & & C only & U included & & C only & O included \\\\ \\hline \n')
+    for i, method in enumerate(methods):
+        f.write('\\multirow{%d}{*}{%s} & ' % (len(classes), method.replace('_', '\_')))
+        for j, target in enumerate(classes):
+            if j != 0:
+                f.write('& ')
+            f.write('%s & '
+                    '%d & %d (%.2f) & %d (%.2f)  & '
+                    '%d & %d (%.2f) & %d (%.2f)  \\\\ \n' %
+                    (target.replace('_', '\_'),
+                     rmr[i][j,:].sum(), rmr[i][j,0], rmp[i][j,0],
+                     rmr[i][j,0]+rmr[i][j,1]+rmr[i][j,2], rmp[i][j,0]+rmp[i][j,1]+rmp[i][j,2],
+                     pmr[i][j,:].sum(), pmr[i][j,0], pmp[i][j,0],
+                     pmr[i][j,0]+pmr[i][j,1]+pmr[i][j,2], pmp[i][j,0]+pmp[i][j,1]+pmp[i][j,2],
+                     )
+                    )
+        f.write('\\hline\n')
+    f.close()
+
+
+def generate_seg_latex_table(methods, classes, recall_metrics, precision_matrics,
+                             background_class=None, filename=None):
+    bg_class_id = _get_bg_class_id(classes, background_class)
+    metric_labels, metric_indices = _get_metric_label_dict(metric_name='recall')
+    rmp = _gether_per_class_metrics(methods, classes, recall_metrics, True,
+                                    metric_labels, metric_indices)
+    rmr = _gether_per_class_metrics(methods, classes, recall_metrics, False,
+                                    metric_labels, metric_indices)
+    metric_labels, metric_indices = _get_metric_label_dict(metric_name='precision')
+    pmp = _gether_per_class_metrics(methods, classes, precision_matrics, True,
+                                    metric_labels, metric_indices)
+    pmr = _gether_per_class_metrics(methods, classes, precision_matrics, False,
+                                    metric_labels, metric_indices)
+    if filename is None:
+        f = sys.stdout
+    else:
+        f = open(filename, 'w')
+    f.write('Metric & Activities')
+    for method in methods:
+        f.write('& %s' % method.replace('_', '\_'))
+    f.write('\\\\ \\hline \n')
+    for i, activity in enumerate(classes):
+        if i != bg_class_id:
+            if i == 0:
+                f.write('\multirow{%d}{*}{Recall} & ' % (len(classes) - 1))
+            else:
+                f.write(' & ')
+            f.write('%s ' % activity.replace('_', '\_'))
+            # Find maximum and store index
+            temp_array = np.array([rmp[j][i,0] for j in range(len(methods))])
+            max_index = temp_array.argpartition(-2)[-2:]
+            for j, method in enumerate(methods):
+                if j in max_index:
+                    f.write('& \\textbf{%d/%.2f\\%%} ' % (rmr[j][i,0], rmp[j][i,0]* 100))
+                else:
+                    f.write('& %d/%.2f\\%% ' % (rmr[j][i,0], rmp[j][i,0]* 100))
+            f.write('\\\\ \n')
+    f.write('\\hline \n')
+    for i, activity in enumerate(classes):
+        if i != bg_class_id:
+            if i == 0:
+                f.write('\multirow{%d}{*}{Precision} & ' % (len(classes) - 1))
+            else:
+                f.write(' & ')
+            f.write('%s ' % activity.replace('_', '\_'))
+            # Find maximum and store index
+            temp_array = np.array([pmp[j][i,0] for j in range(len(methods))])
+            max_index = temp_array.argpartition(-2)[-2:]
+            for j, method in enumerate(methods):
+                if j in max_index:
+                    f.write('& \\textbf{%d/%.2f\\%%} ' % (pmr[j][i,0], pmp[j][i,0]* 100))
+                else:
+                    f.write('& %d/%.2f\\%% ' % (pmr[j][i,0], pmp[j][i,0]* 100))
+            f.write('\\\\ \n')
+    f.write('\\hline \n')
+
+
+def generate_event_recall_table(methods, classes, recall_metrics,
+                                background_class=None, filename=None):
+    bg_class_id = _get_bg_class_id(classes, background_class)
+    metric_labels, metric_indices = _get_metric_label_dict(metric_name='recall')
+    rmp = _gether_per_class_metrics(methods, classes, recall_metrics, True,
+                                    metric_labels, metric_indices)
+    rmr = _gether_per_class_metrics(methods, classes, recall_metrics, False,
+                                    metric_labels, metric_indices)
+    if filename is None:
+        f = sys.stdout
+    else:
+        f = open(filename, 'w')
+    f.write('Activities')
+    for method in methods:
+        f.write('& %s' % method.replace('_', '\_'))
+    f.write('\\\\ \\hline \n')
+    for i, activity in enumerate(classes):
+        if i != bg_class_id:
+            f.write(' & ')
+            f.write('%s ' % activity.replace('_', '\_'))
+            # Find maximum and store index
+            temp_array = np.array([rmp[j][i, 0] for j in range(len(methods))])
+            max_index = temp_array.argpartition(-2)[-2:]
+            for j, method in enumerate(methods):
+                if j in max_index:
+                    f.write('& \\textbf{%.2f\\%%} ' % (rmp[j][i,0]* 100))
+                else:
+                    f.write('& %.2f\\%% ' % (rmp[j][i,0]* 100))
+            f.write('\\\\ \n')
+    f.write('\\hline \n')
+    f.write('Recall (micro) &')
+    total_correct = np.array([np.sum(rmr[j][:, 0]) - rmr[j][bg_class_id, 0] for j in range(len(methods))])
+    total_events = np.array([total_correct[j] + np.sum(rmr[j][:, 4]) - rmr[j][bg_class_id, 4]
+                             for j in range(len(methods))])
+    max_index = total_correct.argpartition(-2)[-2:]
+    for j, method in enumerate(methods):
+        if j in max_index:
+            f.write('& \\textbf{%.2f\\%%} ' % (total_correct[j] / total_events[j] * 100))
+        else:
+            f.write('& %.2f\\%% ' % (total_correct[j] / total_events[j] * 100))
+    f.write('\\\\ \n')
+    f.write('\\hline \n')
+    logger.debug('Total Events: %s' % str(total_events))
+
+
+def generate_timeliness_table(methods, classes, result_array,
+                              background_class, filename=None):
+    bg_class_id = _get_bg_class_id(classes, background_class)
+    timeliness_values = []
+    for i, method in enumerate(methods):
+        start_mismatch, stop_mismatch = _get_timeliness_measures(classes, result_array[i][0], result_array[i][1],
+                                                                 result_array[i][4])
+        cur_timeliness = [start_mismatch[j] + stop_mismatch[j] for j in range(len(classes))]
+        timeliness_values.append([np.abs(np.array(cur_timeliness[j])) for j in range(len(classes))])
+    # Average, <60, >60
+    if filename is None:
+        f = sys.stdout
+    else:
+        f = open(filename, 'w')
+    f.write('Activities & Metrics ')
+    for method in methods:
+        f.write('& %s' % method.replace('_', '\_'))
+    f.write('\\\\ \\hline \n')
+    for i, activity in enumerate(classes):
+        if i != bg_class_id:
+            f.write('\multirow{3}{*}{%s} & ' % activity.replace('_', '\_'))
+            f.write('Average ')
+            # Find maximum and store index
+            for j, method in enumerate(methods):
+                if len(timeliness_values[j][i]) == 0:
+                    average_time = 0.
+                else:
+                    average_time = np.average(timeliness_values[j][i])
+                f.write('& %.2f s' % average_time)
+            f.write('\\\\ \n')
+            f.write(' & ')
+            f.write('<60s ')
+            for j, method in enumerate(methods):
+                number = (timeliness_values[j][i] <= 60).sum()
+                if len(timeliness_values[j][i]) == 0:
+                    percentage = 0.0
+                else:
+                    percentage = float(number)/len(timeliness_values[j][i]) * 100
+                f.write('& %d/%.2f\\%% ' % (number, percentage))
+            f.write('\\\\ \n')
+            f.write(' & ')
+            f.write('>60s ')
+            for j, method in enumerate(methods):
+                number = (timeliness_values[j][i] > 60).sum()
+                if len(timeliness_values[j][i]) == 0:
+                    percentage = 0.0
+                else:
+                    percentage = float(number)/len(timeliness_values[j][i]) * 100
+                f.write('& %d/%.2f\\%% ' % (number, percentage))
+            f.write('\\\\ \\hline \n')
+
+
+def generate_timeliness_within60_table(methods, classes, result_array,
+                                       background_class, filename=None):
+    bg_class_id = _get_bg_class_id(classes, background_class)
+    timeliness_values = []
+    for i, method in enumerate(methods):
+        start_mismatch, stop_mismatch = _get_timeoffset_measures(classes, result_array[i][0], result_array[i][1],
+                                                                 result_array[i][4])
+        cur_timeliness = [start_mismatch[j] + stop_mismatch[j] for j in range(len(classes))]
+        timeliness_values.append([np.abs(np.array(cur_timeliness[j])) for j in range(len(classes))])
+    # Average, <60, >60
+    if filename is None:
+        f = sys.stdout
+    else:
+        f = open(filename, 'w')
+    f.write('\\textbf{Activities} ')
+    for method in methods:
+        f.write('& \\textbf{%s} ' % method.replace('_', ' '))
+    f.write('\\\\ \\midrule \n')
+    for i, activity in enumerate(classes):
+        if i != bg_class_id:
+            f.write('%s & ' % activity.replace('_', ' '))
+            for j, method in enumerate(methods):
+                number = (timeliness_values[j][i] <= 60).sum()
+                if len(timeliness_values[j][i]) == 0:
+                    percentage = 0.0
+                else:
+                    percentage = float(number)/len(timeliness_values[j][i]) * 100
+                f.write('& %.2f\\%% ' % (percentage))
+            f.write('\\\\ \n')
+    f.write('\\bottomrule\n')
+
+
+def generate_timeliness_avg_table(methods, classes, result_array,
+                                  background_class, filename=None):
+    bg_class_id = _get_bg_class_id(classes, background_class)
+    timeliness_values = []
+    for i, method in enumerate(methods):
+        start_mismatch, stop_mismatch = _get_timeliness_measures(classes, result_array[i][0], result_array[i][1],
+                                                                 result_array[i][4])
+        cur_timeliness = [start_mismatch[j] + stop_mismatch[j] for j in range(len(classes))]
+        timeliness_values.append([np.abs(np.array(cur_timeliness[j])) for j in range(len(classes))])
+    # Average, <60, >60
+    if filename is None:
+        f = sys.stdout
+    else:
+        f = open(filename, 'w')
+    f.write('\\textbf{Activities} ')
+    for method in methods:
+        f.write('& \\textbf{%s} ' % method.replace('_', ' '))
+    f.write('\\\\ \\midrule \n')
+    for i, activity in enumerate(classes):
+        if i != bg_class_id:
+            f.write('%s ' % activity.replace('_', ' '))
+            # Find maximum and store index
+            for j, method in enumerate(methods):
+                if len(timeliness_values[j][i]) == 0:
+                    average_time = 0.
+                else:
+                    average_time = np.average(timeliness_values[j][i])
+                f.write('& %.1f' % average_time)
+            f.write('\\\\ \n')
+    f.write('\\bottomrule \n')
+
+
+def generate_offset_per_table(methods, classes, result_array,
+                              background_class, filename=None):
+    bg_class_id = _get_bg_class_id(classes, background_class)
+    timeliness_values = []
+    for i, method in enumerate(methods):
+        start_mismatch, stop_mismatch = _get_timeoffset_measures(classes, result_array[i][0], result_array[i][1],
+                                                                 result_array[i][4])
+        cur_timeliness = [start_mismatch[j] + stop_mismatch[j] for j in range(len(classes))]
+        timeliness_values.append([np.abs(np.array(cur_timeliness[j])) for j in range(len(classes))])
+    # Average, <60, >60
+    if filename is None:
+        f = sys.stdout
+    else:
+        f = open(filename, 'w')
+    f.write('\\textbf{Activities} ')
+    for method in methods:
+        f.write('& \\textbf{%s} ' % method.replace('_', ' '))
+    f.write('\\\\ \\midrule \n')
+    for i, activity in enumerate(classes):
+        if i != bg_class_id:
+            f.write('%s ' % activity.replace('_', ' '))
+            # Find maximum and store index
+            for j, method in enumerate(methods):
+                total_num = len(timeliness_values[j][i])/2
+                nonzero_num = np.count_nonzero(timeliness_values[j][i])
+                f.write('& %d/%d' % (nonzero_num, total_num))
+            f.write('\\\\ \n')
+    f.write('\\bottomrule \n')
+

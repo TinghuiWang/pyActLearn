@@ -168,6 +168,9 @@ def per_class_segment_scoring(num_classes, truth, prediction, truth_scoring, pre
     #DEBUG
     logger.debug('Total Seg: %d' % total_segs)
     logger.debug('seg_logs: %s' % str(seg_logs))
+    logger.debug('seg_logs_added: %s' % str([
+        recall_array[i]['C'] + recall_array[i]['D'] for i in range(num_classes)
+    ]))
     return recall_array, fpr_array
 
 

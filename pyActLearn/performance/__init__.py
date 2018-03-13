@@ -78,7 +78,7 @@ def get_performance_array(confusion_matrix):
        per-text decisions
     5. **Precision (macro)**: An average per-class agreement of the data class labels with those of a classifiers
     6. **Recall (macro)**: An average per-class effectiveness of a classifier to identify class labels
-    7. **F-Score (micro)**: Relations between data's positive labels and those given by a classifier based on a per-class
+    7. **F-Score (macro)**: Relations between data's positive labels and those given by a classifier based on a per-class
        average
     8. **Exact Matching Ratio**: The average per-text exact classification
 
