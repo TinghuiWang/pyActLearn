@@ -64,9 +64,10 @@ def load_and_test(token, test_data, num_classes, result, model):
 
 if __name__ == '__main__':
     args_ok = False
-    parser = argparse.ArgumentParser(description='Run Stacked Autoencoder on single resident CASAS datasets.')
+    parser = argparse.ArgumentParser(description='Run LSTM on single resident CASAS datasets.')
     parser.add_argument('-d', '--dataset', help='Directory to original datasets')
     parser.add_argument('-o', '--output', help='Output folder')
+    parser.add_argument('--week', type=int, metavar='N', help='Train on week N-1 and run on week N')
     parser.add_argument('--h5py', help='HDF5 dataset folder')
     args = parser.parse_args()
     # Default parameters
@@ -131,6 +132,11 @@ if __name__ == '__main__':
     num_classes = casas_fuel.get_output_dims()
     # Open Fuel and get all splits
     split_list = casas_fuel.get_set_list()
+    # If week is specified
+    if args.week is not None:
+        if 0 < args.week < len(split_list):
+            split_list = [split_list[args.week - 1], split_list[args.week]]
+    # Start training
     train_name = split_list[0]
     train_set = casas_fuel.get_dataset((train_name,), load_in_memory=True)
     (train_set_data) = train_set.data_sources
@@ -160,7 +166,7 @@ if __name__ == '__main__':
         prediction_padding = np.zeros((model.num_steps,))
         prediction_padding[:] = -1
         prediction = np.concatenate((prediction_padding, prediction), axis=0)
-        casas_fuel.back_annotate(fp_back_annotated, prediction=prediction, split_id=i)
+        casas_fuel.back_annotate(fp_back_annotated, prediction=prediction, split_name=test_name)
         train_name = test_name
         train_set_data = test_set_data
     f = open(result_pkl_file, 'wb')

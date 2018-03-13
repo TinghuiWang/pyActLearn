@@ -31,7 +31,7 @@ def training_and_test(token, train_data, test_data, num_classes, result, model, 
     for i in range(test_data[1].shape[0]):
         test_y[i, test_data[1].flatten()[i]] = 1
     model.fit(train_data[0], train_y, pretrain_iter_num=8000,
-              tuning_iter_num=5000, tuning_criterion='monitor_based',
+              tuning_iter_num=8000, tuning_criterion='monitor_based',
               summaries_dir=log_dir, test_x=test_data[0], test_y=test_y,
               summary_interval=100)
     # Test
@@ -66,6 +66,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run Stacked Autoencoder on single resident CASAS datasets.')
     parser.add_argument('-d', '--dataset', help='Directory to original datasets')
     parser.add_argument('-o', '--output', help='Output folder')
+    parser.add_argument('--week', type=int, metavar='N', help='Train on week N-1 and run on week N')
     parser.add_argument('--h5py', help='HDF5 dataset folder')
     args = parser.parse_args()
     # Default parameters
@@ -130,6 +131,11 @@ if __name__ == '__main__':
     num_classes = casas_fuel.get_output_dims()
     # Open Fuel and get all splits
     split_list = casas_fuel.get_set_list()
+    # If week is specified
+    if args.week is not None:
+        if 0 < args.week < len(split_list):
+            split_list = [split_list[args.week - 1], split_list[args.week]]
+    # Start training
     train_name = split_list[0]
     train_set = casas_fuel.get_dataset((train_name,), load_in_memory=True)
     (train_set_data) = train_set.data_sources
@@ -158,7 +164,7 @@ if __name__ == '__main__':
         else:
             prediction, prediction_proba = load_and_test(test_name, test_set_data, num_classes, result, model=sda)
         casas_fuel.back_annotate(fp_back_annotated, prediction=prediction, split_id=i)
-        casas_fuel.back_annotate_with_proba(fp_back_probability, prediction_proba, split_id=i)
+        casas_fuel.back_annotate_with_proba(fp_back_probability, prediction_proba, split_name=test_name)
         train_name = test_name
         train_set_data = test_set_data
     fp_back_annotated.close()
